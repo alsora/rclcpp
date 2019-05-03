@@ -109,6 +109,7 @@ public:
     // interprocess publish, resulting in lower publish-to-subscribe latency.
     // It's not possible to do that with an unique_ptr,
     // as do_intra_process_publish takes the ownership of the message.
+    uint64_t message_seq;
     bool inter_process_publish_needed =
       get_subscription_count() > get_intra_process_subscription_count();
     MessageSharedPtr shared_msg;
