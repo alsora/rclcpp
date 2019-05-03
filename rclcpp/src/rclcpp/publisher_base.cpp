@@ -268,51 +268,9 @@ PublisherBase::setup_intra_process(
     throw exceptions::InvalidParametersException(
             "intraprocess communication is not allowed with durability qos policy non-volatile");
   }
-  const char * topic_name = this->get_topic_name();
-  if (!topic_name) {
-    throw std::runtime_error("failed to get topic name");
-  }
-
-  auto intra_process_topic_name = std::string(topic_name) + "/_intra";
-
-  rcl_ret_t ret = rcl_publisher_init(
-    &intra_process_publisher_handle_,
-    rcl_node_handle_.get(),
-    rclcpp::type_support::get_intra_process_message_msg_type_support(),
-    intra_process_topic_name.c_str(),
-    &intra_process_options);
-  if (ret != RCL_RET_OK) {
-    if (ret == RCL_RET_TOPIC_NAME_INVALID) {
-      auto rcl_node_handle = rcl_node_handle_.get();
-      // this will throw on any validation problem
-      rcl_reset_error();
-      expand_topic_or_service_name(
-        intra_process_topic_name,
-        rcl_node_get_name(rcl_node_handle),
-        rcl_node_get_namespace(rcl_node_handle));
-    }
-
-    rclcpp::exceptions::throw_from_rcl_error(ret, "could not create intra process publisher");
-  }
 
   intra_process_publisher_id_ = intra_process_publisher_id;
   weak_ipm_ = ipm;
   intra_process_is_enabled_ = true;
 
-  // Life time of this object is tied to the publisher handle.
-  rmw_publisher_t * publisher_rmw_handle = rcl_publisher_get_rmw_handle(
-    &intra_process_publisher_handle_);
-  if (publisher_rmw_handle == nullptr) {
-    auto msg = std::string("Failed to get rmw publisher handle") + rcl_get_error_string().str;
-    rcl_reset_error();
-    throw std::runtime_error(msg);
-  }
-  auto rmw_ret = rmw_get_gid_for_publisher(
-    publisher_rmw_handle, &intra_process_rmw_gid_);
-  if (rmw_ret != RMW_RET_OK) {
-    auto msg =
-      std::string("failed to create intra process publisher gid: ") + rmw_get_error_string().str;
-    rmw_reset_error();
-    throw std::runtime_error(msg);
-  }
 }

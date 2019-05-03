@@ -276,13 +276,6 @@ Executor::execute_any_executable(AnyExecutable & any_exec)
   if (any_exec.subscription) {
     execute_subscription(any_exec.subscription);
   }
-
-  // this could be removed
-  if (any_exec.subscription_intra_process) {
-    execute_intra_process_subscription(any_exec.subscription_intra_process);
-  }
-
-
   if (any_exec.service) {
     execute_service(any_exec.service);
   }
@@ -339,29 +332,6 @@ Executor::execute_subscription(
       rcl_reset_error();
     }
     subscription->return_message(message);
-  }
-}
-
-void
-Executor::execute_intra_process_subscription(
-  rclcpp::SubscriptionBase::SharedPtr subscription)
-{
-  rcl_interfaces::msg::IntraProcessMessage ipm;
-  rmw_message_info_t message_info;
-  rcl_ret_t status = rcl_take(
-    subscription->get_intra_process_subscription_handle().get(),
-    &ipm,
-    &message_info);
-
-  if (status == RCL_RET_OK) {
-    message_info.from_intra_process = true;
-    subscription->handle_intra_process_message(ipm, message_info);
-  } else if (status != RCL_RET_SUBSCRIPTION_TAKE_FAILED) {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rclcpp",
-      "take failed for intra process subscription on topic '%s': %s",
-      subscription->get_topic_name(), rcl_get_error_string().str);
-    rcl_reset_error();
   }
 }
 

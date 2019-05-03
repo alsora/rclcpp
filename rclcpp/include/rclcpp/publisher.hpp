@@ -109,7 +109,6 @@ public:
     // interprocess publish, resulting in lower publish-to-subscribe latency.
     // It's not possible to do that with an unique_ptr,
     // as do_intra_process_publish takes the ownership of the message.
-    uint64_t message_seq;
     bool inter_process_publish_needed =
       get_subscription_count() > get_intra_process_subscription_count();
     MessageSharedPtr shared_msg;
@@ -121,7 +120,6 @@ public:
       message_seq =
         store_intra_process_message(intra_process_publisher_id_, std::move(msg));
     }
-    this->do_intra_process_publish(message_seq);
     if (inter_process_publish_needed) {
       this->do_inter_process_publish(shared_msg.get());
     }
@@ -234,33 +232,6 @@ protected:
     if (RCL_RET_OK != status) {
       rclcpp::exceptions::throw_from_rcl_error(status, "failed to publish serialized message");
     }
-  }
-
-  void
-  do_intra_process_publish(uint64_t message_seq)
-  {
-
-    (void) message_seq;
-
-    /*
-    rcl_interfaces::msg::IntraProcessMessage ipm;
-    ipm.publisher_id = intra_process_publisher_id_;
-    ipm.message_sequence = message_seq;
-    auto status = rcl_publish(&intra_process_publisher_handle_, &ipm);
-    if (RCL_RET_PUBLISHER_INVALID == status) {
-      rcl_reset_error();  // next call will reset error message if not context
-      if (rcl_publisher_is_valid_except_context(&intra_process_publisher_handle_)) {
-        rcl_context_t * context = rcl_publisher_get_context(&intra_process_publisher_handle_);
-        if (nullptr != context && !rcl_context_is_valid(context)) {
-          // publisher is invalid due to context being shutdown
-          return;
-        }
-      }
-    }
-    if (RCL_RET_OK != status) {
-      rclcpp::exceptions::throw_from_rcl_error(status, "failed to publish intra process message");
-    }
-    */
   }
 
   uint64_t
