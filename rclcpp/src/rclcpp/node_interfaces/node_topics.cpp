@@ -106,6 +106,24 @@ NodeTopics::create_subscription(
     auto options_copy = subscription_options;
     options_copy.ignore_local_publications = false;
     subscription->setup_intra_process(intra_process_subscription_id, ipm, options_copy);
+
+    /*
+    std::thread worker_thread([=]() {
+         rcl_interfaces::msg::IntraProcessMessage msg;
+
+          while(rclcpp::ok()){
+
+            subscription->queue->consume(msg);
+            //std::cout<<"WORKER thread received message"<<std::endl;
+            subscription->handle_intra_process_message(msg, rmw_message_info_t());
+          }
+       });
+    */
+
+    std::thread worker_thread = std::thread(&rclcpp::SubscriptionBase::consume_messages_task, subscription);
+
+    worker_thread.detach();
+
   }
 
   // Return the completed subscription.

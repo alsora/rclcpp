@@ -72,6 +72,9 @@ public:
     uint64_t & message_seq) = 0;
 
   virtual void
+  pass_message_to_buffers(uint64_t intra_process_publisher_id, uint64_t message_seq, std::shared_ptr<const void> msg) = 0;
+
+  virtual void
   store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq) = 0;
 
   virtual mapped_ring_buffer::MappedRingBufferBase::SharedPtr
@@ -161,6 +164,51 @@ public:
 
     return info.buffer;
   }
+
+
+
+  void
+  pass_message_to_buffers(uint64_t intra_process_publisher_id, uint64_t message_seq, std::shared_ptr<const void> msg)
+  {
+    std::lock_guard<std::mutex> lock(runtime_mutex_);
+    auto it = publishers_.find(intra_process_publisher_id);
+    if (it == publishers_.end()) {
+      throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
+    }
+    PublisherInfo & info = it->second;
+    auto publisher = info.publisher.lock();
+    if (!publisher) {
+      throw std::runtime_error("publisher has unexpectedly gone out of scope");
+    }
+
+    // Figure out what subscriptions should receive the message.
+    auto & destined_subscriptions =
+      subscription_ids_by_topic_[fixed_size_string(publisher->get_topic_name())];
+    // Store the list for later comparison.
+    if (info.target_subscriptions_by_message_sequence.count(message_seq) == 0) {
+      info.target_subscriptions_by_message_sequence.emplace(
+        message_seq, AllocSet(std::less<uint64_t>(), uint64_allocator));
+    } else {
+      info.target_subscriptions_by_message_sequence[message_seq].clear();
+    }
+    std::copy(
+      destined_subscriptions.begin(), destined_subscriptions.end(),
+      // Memory allocation occurs in info.target_subscriptions_by_message_sequence[message_seq]
+      std::inserter(
+        info.target_subscriptions_by_message_sequence[message_seq],
+        // This ends up only being a hint to std::set, could also be .begin().
+        info.target_subscriptions_by_message_sequence[message_seq].end()
+      )
+    );
+
+    for (auto id : destined_subscriptions){
+
+      auto sub = subscriptions_[id];
+      sub->add_shared_ptr_message_to_queue(msg);
+    }
+
+  }
+
 
   void
   store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq)
@@ -307,9 +355,9 @@ private:
 
   using AllocSet = std::set<uint64_t, std::less<uint64_t>, RebindAlloc<uint64_t>>;
   using SubscriptionMap = std::unordered_map<
-    uint64_t, SubscriptionBase::WeakPtr,
+    uint64_t, SubscriptionBase::SharedPtr,
     std::hash<uint64_t>, std::equal_to<uint64_t>,
-    RebindAlloc<std::pair<const uint64_t, SubscriptionBase::WeakPtr>>>;
+    RebindAlloc<std::pair<const uint64_t, SubscriptionBase::SharedPtr>>>;
 
   using IDTopicMap = std::map<
     FixedSizeString,

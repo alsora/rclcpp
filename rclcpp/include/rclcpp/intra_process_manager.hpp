@@ -239,22 +239,11 @@ public:
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const MessageT> message)
   {
-    using MRBMessageAlloc = typename std::allocator_traits<Alloc>::template rebind_alloc<MessageT>;
-    using TypedMRB = typename mapped_ring_buffer::MappedRingBuffer<MessageT, MRBMessageAlloc>;
     uint64_t message_seq = 0;
     mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
       intra_process_publisher_id, message_seq);
-    typename TypedMRB::SharedPtr typed_buffer = std::static_pointer_cast<TypedMRB>(buffer);
-    if (!typed_buffer) {
-      throw std::runtime_error("Typecast failed due to incorrect message type");
-    }
 
-    // Insert the message into the ring buffer using the message_seq to identify it.
-    bool did_replace = typed_buffer->push_and_replace(message_seq, message);
-    // TODO(wjwwood): do something when a message was displaced. log debug?
-    (void)did_replace;  // Avoid unused variable warning.
-
-    impl_->store_intra_process_message(intra_process_publisher_id, message_seq);
+    impl_->pass_message_to_buffers(intra_process_publisher_id, message_seq, message);
 
     // Return the message sequence which is sent to the subscription.
     return message_seq;
@@ -268,22 +257,11 @@ public:
     uint64_t intra_process_publisher_id,
     std::unique_ptr<MessageT, Deleter> message)
   {
-    using MRBMessageAlloc = typename std::allocator_traits<Alloc>::template rebind_alloc<MessageT>;
-    using TypedMRB = typename mapped_ring_buffer::MappedRingBuffer<MessageT, MRBMessageAlloc>;
     uint64_t message_seq = 0;
     mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
       intra_process_publisher_id, message_seq);
-    typename TypedMRB::SharedPtr typed_buffer = std::static_pointer_cast<TypedMRB>(buffer);
-    if (!typed_buffer) {
-      throw std::runtime_error("Typecast failed due to incorrect message type");
-    }
 
-    // Insert the message into the ring buffer using the message_seq to identify it.
-    bool did_replace = typed_buffer->push_and_replace(message_seq, std::move(message));
-    // TODO(wjwwood): do something when a message was displaced. log debug?
-    (void)did_replace;  // Avoid unused variable warning.
-
-    impl_->store_intra_process_message(intra_process_publisher_id, message_seq);
+    impl_->pass_message_to_buffers(intra_process_publisher_id, message_seq, std::move(message));
 
     // Return the message sequence which is sent to the subscription.
     return message_seq;

@@ -44,6 +44,8 @@
 #include "rclcpp/visibility_control.hpp"
 #include "rclcpp/waitable.hpp"
 
+#include "rclcpp/cpqueue.hpp"
+
 namespace rclcpp
 {
 
@@ -107,6 +109,9 @@ public:
       this->add_event_handler(event_callbacks.liveliness_callback,
         RCL_SUBSCRIPTION_LIVELINESS_CHANGED);
     }
+
+    typed_queue = std::make_shared<ConsumerProducerQueue<ConstMessageSharedPtr>>(100);
+
   }
 
   /// Support dynamically setting the message memory strategy.
@@ -213,7 +218,31 @@ public:
     return intra_process_subscription_handle_;
   }
 
+
+  void add_shared_ptr_message_to_queue(std::shared_ptr<const void> message_ptr)
+  {
+    auto msg = std::static_pointer_cast<const CallbackMessageT>(message_ptr);
+
+    typed_queue->add(msg);
+  }
+
+
+  void consume_messages_task()
+  {
+    ConstMessageSharedPtr msg;
+
+    while(rclcpp::ok()){
+
+      typed_queue->consume(msg);
+
+      any_callback_.dispatch_intra_process(msg, rmw_message_info_t());
+    }
+  }
+
 private:
+
+  std::shared_ptr<ConsumerProducerQueue<ConstMessageSharedPtr> > typed_queue;
+
   void
   take_intra_process_message(
     uint64_t publisher_id,

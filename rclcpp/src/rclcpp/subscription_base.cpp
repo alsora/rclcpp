@@ -160,6 +160,9 @@ void SubscriptionBase::setup_intra_process(
   IntraProcessManagerWeakPtr weak_ipm,
   const rcl_subscription_options_t & intra_process_options)
 {
+
+  //this shouldn't be here
+
   std::string intra_process_topic_name = std::string(get_topic_name()) + "/_intra";
   rcl_ret_t ret = rcl_subscription_init(
     intra_process_subscription_handle_.get(),

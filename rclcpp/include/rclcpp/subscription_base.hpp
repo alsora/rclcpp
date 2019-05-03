@@ -152,6 +152,11 @@ public:
     IntraProcessManagerWeakPtr weak_ipm,
     const rcl_subscription_options_t & intra_process_options);
 
+
+  virtual void add_shared_ptr_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
+
+  virtual void consume_messages_task() = 0;
+
 protected:
   template<typename EventCallbackT>
   void
