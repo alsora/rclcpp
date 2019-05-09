@@ -44,7 +44,7 @@
 #include "rclcpp/visibility_control.hpp"
 #include "rclcpp/waitable.hpp"
 
-#include "rclcpp/cpqueue.hpp"
+#include "rclcpp/blockingconcurrentqueue.h"
 
 namespace rclcpp
 {
@@ -110,7 +110,7 @@ public:
         RCL_SUBSCRIPTION_LIVELINESS_CHANGED);
     }
 
-    typed_queue = std::make_shared<ConsumerProducerQueue<ConstMessageSharedPtr>>(100);
+    typed_queue = std::make_shared<moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr>>();
 
   }
 
@@ -223,7 +223,7 @@ public:
   {
     auto msg = std::static_pointer_cast<const CallbackMessageT>(message_ptr);
 
-    typed_queue->add(msg);
+    typed_queue->enqueue(msg);
   }
 
 
@@ -233,7 +233,7 @@ public:
 
     while(rclcpp::ok()){
 
-      typed_queue->consume(msg);
+      typed_queue->wait_dequeue(msg);
 
       any_callback_.dispatch_intra_process(msg, rmw_message_info_t());
     }
@@ -241,7 +241,7 @@ public:
 
 private:
 
-  std::shared_ptr<ConsumerProducerQueue<ConstMessageSharedPtr> > typed_queue;
+  std::shared_ptr<moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr> > typed_queue;
 
   void
   take_intra_process_message(
