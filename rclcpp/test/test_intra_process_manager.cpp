@@ -129,6 +129,8 @@ public:
 }  // namespace mock
 }  // namespace rclcpp
 
+#ifdef FALSE
+
 // Prevent rclcpp/publisher_base.hpp and rclcpp/subscription.hpp from being imported.
 #define RCLCPP__PUBLISHER_BASE_HPP_
 #define RCLCPP__SUBSCRIPTION_BASE_HPP_
@@ -144,8 +146,6 @@ public:
 
 // NOLINTNEXTLINE(build/include_order)
 #include <rcl_interfaces/msg/intra_process_message.hpp>
-
-#ifdef FALSE
 
 /*
    This tests the "normal" usage of the class:
