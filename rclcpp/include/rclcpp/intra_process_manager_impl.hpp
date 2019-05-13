@@ -195,9 +195,10 @@ public:
 
       auto sub = subscriptions_[id];
 
+      // This is used by all queue-based methods
       //sub->add_shared_ptr_message_to_queue(msg);
 
-
+      // This is used for direct-dispatch
       sub->trigger_callback(msg);
     }
 

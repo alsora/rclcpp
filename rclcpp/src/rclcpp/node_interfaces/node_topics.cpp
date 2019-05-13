@@ -107,8 +107,12 @@ NodeTopics::create_subscription(
     options_copy.ignore_local_publications = false;
     subscription->setup_intra_process(intra_process_subscription_id, ipm, options_copy);
 
-    //std::thread worker_thread = std::thread(&rclcpp::SubscriptionBase::consume_messages_task, subscription);
-    //worker_thread.detach();
+    // This is used for queue-methods with an external threads (not integrated with spin)
+    {
+      //std::thread worker_thread = std::thread(&rclcpp::SubscriptionBase::consume_messages_task, subscription);
+      //worker_thread.detach();
+    }
+
 
   }
 

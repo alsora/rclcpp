@@ -195,18 +195,7 @@ public:
   void
   publish(const rcl_serialized_message_t * serialized_msg)
   {
-<<<<<<< fbea0949f48bbf6858bbe89d56c8dfcfc36d87e1
     return this->do_serialized_publish(serialized_msg);
-=======
-    if (intra_process_is_enabled_) {
-      // TODO(Karsten1987): support serialized message passed by intraprocess
-      throw std::runtime_error("storing serialized messages in intra process is not supported yet");
-    }
-    auto status = rcl_publish_serialized_message(&publisher_handle_, serialized_msg, nullptr);
-    if (RCL_RET_OK != status) {
-      rclcpp::exceptions::throw_from_rcl_error(status, "failed to publish serialized message");
-    }
->>>>>>> small fixes
   }
 
 // Skip deprecated attribute in windows, as it raise a warning in template specialization.
