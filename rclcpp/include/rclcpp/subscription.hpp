@@ -44,6 +44,36 @@
 #include "rclcpp/visibility_control.hpp"
 #include "rclcpp/waitable.hpp"
 
+
+#include "rclcpp/queues/blockingconcurrentqueue.h"
+#include "rclcpp/queues/concurrentqueue.h"
+#include "rclcpp/queues/cpqueue.hpp"
+
+#include "rclcpp/subscription_ipc_waitable.hpp"
+
+
+/**
+ * Preprocessor directives for selecting IPC implementation
+ */
+
+#define QUEUE_TYPE_NO_QUEUE 0
+#define QUEUE_TYPE_SIMPLE 1 // "rclcpp/queues/cpqueue.hpp"
+#define QUEUE_TYPE_CONCURRENT 2 // "rclcpp/queues/concurrentqueue.h"
+#define QUEUE_TYPE_BLOCKING 3 // "rclcpp/queues/blockingconcurrentqueue.h"
+#define QUEUE_TYPE QUEUE_TYPE_SIMPLE
+
+#define IPC_TYPE_DEFAULT 1
+#define IPC_TYPE_THREAD 2
+#define IPC_TYPE_SPIN 3
+#define IPC_TYPE_DIRECT_DISPATCH 4
+#define IPC_TYPE IPC_TYPE_DIRECT_DISPATCH
+
+// disable the queues if not needed
+#if IPC_TYPE == IPC_TYPE_DEFAULT || IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
+#define QUEUE_TYPE QUEUE_TYPE_NO_QUEUE
+#endif
+
+
 namespace rclcpp
 {
 
