@@ -157,6 +157,8 @@ public:
 
   virtual void consume_messages_task() = 0;
 
+  virtual void trigger_callback(std::shared_ptr<const void> message_ptr) = 0;
+
 protected:
   template<typename EventCallbackT>
   void

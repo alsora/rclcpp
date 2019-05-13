@@ -370,10 +370,12 @@ public:
   virtual void
   get_next_waitable(executor::AnyExecutable & any_exec, const WeakNodeVector & weak_nodes)
   {
+    //std::cout<<"get next waitable"<<std::endl;
     auto it = waitable_handles_.begin();
     while (it != waitable_handles_.end()) {
       auto waitable = *it;
       if (waitable) {
+        //std::cout<<"get next waitable LOOP element"<<std::endl;
         // Find the group for this handle and see if it can be serviced
         auto group = get_group_by_waitable(waitable, weak_nodes);
         if (!group) {

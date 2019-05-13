@@ -121,13 +121,60 @@ Node::create_subscription(
     typename rclcpp::subscription_traits::has_message_type<CallbackT>::type, AllocatorT>::SharedPtr
   msg_mem_strat)
 {
-  return rclcpp::create_subscription<MessageT>(
-    *this,
+  using CallbackMessageT = typename rclcpp::subscription_traits::has_message_type<CallbackT>::type;
+
+  std::shared_ptr<AllocatorT> allocator = options.allocator;
+  if (!allocator) {
+    allocator = std::make_shared<AllocatorT>();
+  }
+
+  rmw_qos_profile_t qos_profile = options.qos_profile;
+  qos_profile.depth = qos_history_depth;
+
+  if (!msg_mem_strat) {
+    using rclcpp::message_memory_strategy::MessageMemoryStrategy;
+    msg_mem_strat = MessageMemoryStrategy<CallbackMessageT, AllocatorT>::create_default();
+  }
+
+  bool use_intra_process;
+  switch (options.use_intra_process_comm) {
+    case IntraProcessSetting::Enable:
+      use_intra_process = true;
+      break;
+    case IntraProcessSetting::Disable:
+      use_intra_process = false;
+      break;
+    case IntraProcessSetting::NodeDefault:
+      use_intra_process = this->get_node_options().use_intra_process_comms();
+      break;
+    default:
+      throw std::runtime_error("Unrecognized IntraProcessSetting value");
+      break;
+  }
+
+
+  std::shared_ptr<SubscriptionT> sub = rclcpp::create_subscription<
+    MessageT, CallbackT, AllocatorT, CallbackMessageT, SubscriptionT>(
+    this->node_topics_.get(),
     extend_name_with_sub_namespace(topic_name, this->get_sub_namespace()),
     qos,
     std::forward<CallbackT>(callback),
-    options,
-    msg_mem_strat);
+    qos_profile,
+    options.callback_group,
+    options.ignore_local_publications,
+    use_intra_process,
+    msg_mem_strat,
+    allocator);
+
+  /*
+  if (use_intra_process){
+    std::shared_ptr<rclcpp::Waitable> waitable_ptr =
+      sub->create_intra_process_waitable();
+
+    this->get_node_waitables_interface()->add_waitable(waitable_ptr, nullptr);
+  }
+  */
+  return sub;
 }
 
 template<

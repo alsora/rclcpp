@@ -38,6 +38,10 @@
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/visibility_control.hpp"
 
+#include "rclcpp/clock.hpp"
+#include "rclcpp/time.hpp"
+
+
 namespace rclcpp
 {
 namespace intra_process_manager
@@ -170,7 +174,9 @@ public:
   void
   pass_message_to_buffers(uint64_t intra_process_publisher_id, uint64_t message_seq, std::shared_ptr<const void> msg)
   {
-    std::lock_guard<std::mutex> lock(runtime_mutex_);
+    (void)message_seq;
+
+    //std::lock_guard<std::mutex> lock(runtime_mutex_);
     auto it = publishers_.find(intra_process_publisher_id);
     if (it == publishers_.end()) {
       throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
@@ -184,27 +190,15 @@ public:
     // Figure out what subscriptions should receive the message.
     auto & destined_subscriptions =
       subscription_ids_by_topic_[fixed_size_string(publisher->get_topic_name())];
-    // Store the list for later comparison.
-    if (info.target_subscriptions_by_message_sequence.count(message_seq) == 0) {
-      info.target_subscriptions_by_message_sequence.emplace(
-        message_seq, AllocSet(std::less<uint64_t>(), uint64_allocator));
-    } else {
-      info.target_subscriptions_by_message_sequence[message_seq].clear();
-    }
-    std::copy(
-      destined_subscriptions.begin(), destined_subscriptions.end(),
-      // Memory allocation occurs in info.target_subscriptions_by_message_sequence[message_seq]
-      std::inserter(
-        info.target_subscriptions_by_message_sequence[message_seq],
-        // This ends up only being a hint to std::set, could also be .begin().
-        info.target_subscriptions_by_message_sequence[message_seq].end()
-      )
-    );
 
     for (auto id : destined_subscriptions){
 
       auto sub = subscriptions_[id];
-      sub->add_shared_ptr_message_to_queue(msg);
+
+      //sub->add_shared_ptr_message_to_queue(msg);
+
+
+      sub->trigger_callback(msg);
     }
 
   }

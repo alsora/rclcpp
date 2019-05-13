@@ -109,17 +109,14 @@ public:
     // interprocess publish, resulting in lower publish-to-subscribe latency.
     // It's not possible to do that with an unique_ptr,
     // as do_intra_process_publish takes the ownership of the message.
-    uint64_t message_seq;
     bool inter_process_publish_needed =
       get_subscription_count() > get_intra_process_subscription_count();
     MessageSharedPtr shared_msg;
     if (inter_process_publish_needed) {
       shared_msg = std::move(msg);
-      message_seq =
-        store_intra_process_message(intra_process_publisher_id_, shared_msg);
+      store_intra_process_message(intra_process_publisher_id_, shared_msg);
     } else {
-      message_seq =
-        store_intra_process_message(intra_process_publisher_id_, std::move(msg));
+      store_intra_process_message(intra_process_publisher_id_, std::move(msg));
     }
     if (inter_process_publish_needed) {
       this->do_inter_process_publish(shared_msg.get());
@@ -135,7 +132,22 @@ public:
   virtual void
   publish(const std::shared_ptr<const MessageT> & msg)
   {
-    publish(*msg);
+
+    //uint64_t microseconds_since_epoch = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    //std::cout<<"Calling publish: "<< microseconds_since_epoch<<std::endl;
+
+
+    bool inter_process_publish_needed =
+      get_subscription_count() > get_intra_process_subscription_count();
+
+    // Here I should also make some checks on QoS (not volatile?)
+    if (inter_process_publish_needed) {
+      assert(0 && "Inter process shouldn't be needed now!");
+      publish(*msg);
+    }
+
+    store_intra_process_message(intra_process_publisher_id_, msg);
+
   }
 
   virtual void

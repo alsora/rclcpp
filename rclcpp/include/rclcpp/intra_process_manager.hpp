@@ -239,9 +239,12 @@ public:
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const MessageT> message)
   {
+
+    //uint64_t microseconds_since_epoch = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    //std::cout<<"Calling store_intra_process_message: "<< microseconds_since_epoch<<std::endl;
+
+
     uint64_t message_seq = 0;
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
-      intra_process_publisher_id, message_seq);
 
     impl_->pass_message_to_buffers(intra_process_publisher_id, message_seq, message);
 
@@ -258,8 +261,6 @@ public:
     std::unique_ptr<MessageT, Deleter> message)
   {
     uint64_t message_seq = 0;
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
-      intra_process_publisher_id, message_seq);
 
     impl_->pass_message_to_buffers(intra_process_publisher_id, message_seq, std::move(message));
 
