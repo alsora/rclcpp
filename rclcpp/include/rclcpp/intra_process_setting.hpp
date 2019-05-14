@@ -15,6 +15,35 @@
 #ifndef RCLCPP__INTRA_PROCESS_SETTING_HPP_
 #define RCLCPP__INTRA_PROCESS_SETTING_HPP_
 
+
+/**
+ * Preprocessor directives for selecting IPC implementation
+ */
+
+#define QUEUE_TYPE_NO_QUEUE 0
+#define QUEUE_TYPE_SIMPLE 1 // "rclcpp/queues/cpqueue.hpp"
+#define QUEUE_TYPE_CONCURRENT 2 // "rclcpp/queues/concurrentqueue.h"
+#define QUEUE_TYPE_BLOCKING 3 // "rclcpp/queues/blockingconcurrentqueue.h"
+#define QUEUE_TYPE QUEUE_TYPE_SIMPLE
+
+#define IPC_TYPE_DEFAULT 1
+#define IPC_TYPE_QUEUE_THREAD 2
+#define IPC_TYPE_QUEUE_SPIN 3
+#define IPC_TYPE_DIRECT_DISPATCH 4
+#define IPC_TYPE IPC_TYPE_DIRECT_DISPATCH
+
+// disable the queues if not needed
+#if IPC_TYPE == IPC_TYPE_DEFAULT || IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
+#undef QUEUE_TYPE
+#define QUEUE_TYPE QUEUE_TYPE_NO_QUEUE
+#endif
+
+// ensure that a queue is present if the IPC type requires it
+#if (IPC_TYPE == IPC_TYPE_QUEUE_THREAD || IPC_TYPE == IPC_TYPE_QUEUE_SPIN) && QUEUE_TYPE == QUEUE_TYPE_NO_QUEUE
+#error "The IPC type requires a queue, but it is set to NO_QUEUE"
+#endif
+
+
 namespace rclcpp
 {
 
