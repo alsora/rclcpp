@@ -45,6 +45,8 @@
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 #ifndef RCLCPP__NODE_HPP_
 #include "node.hpp"
 #endif
@@ -121,13 +123,41 @@ Node::create_subscription(
     typename rclcpp::subscription_traits::has_message_type<CallbackT>::type, AllocatorT>::SharedPtr
   msg_mem_strat)
 {
-  return rclcpp::create_subscription<MessageT>(
+  std::shared_ptr<SubscriptionT> sub = rclcpp::create_subscription<MessageT>(
     *this,
     extend_name_with_sub_namespace(topic_name, this->get_sub_namespace()),
     qos,
     std::forward<CallbackT>(callback),
     options,
     msg_mem_strat);
+
+  #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
+  /*
+  bool use_intra_process;
+  switch (options.use_intra_process_comm) {
+    case IntraProcessSetting::Enable:
+      use_intra_process = true;
+      break;
+    case IntraProcessSetting::Disable:
+      use_intra_process = false;
+      break;
+    case IntraProcessSetting::NodeDefault:
+      use_intra_process = node_topics->get_node_base_interface()->get_use_intra_process_default();
+      break;
+    default:
+      throw std::runtime_error("Unrecognized IntraProcessSetting value");
+      break;
+  }
+  */
+  bool use_intra_process = true;
+  if (use_intra_process){
+    std::shared_ptr<rclcpp::Waitable> waitable_ptr =
+      sub->create_intra_process_waitable();
+    this->get_node_waitables_interface()->add_waitable(waitable_ptr, nullptr);
+  }
+  #endif
+
+  return sub;
 }
 
 template<
