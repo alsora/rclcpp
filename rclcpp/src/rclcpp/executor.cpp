@@ -30,6 +30,8 @@
 
 #include "rcutils/logging_macros.h"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 using rclcpp::exceptions::throw_from_rcl_error;
 using rclcpp::executor::AnyExecutable;
 using rclcpp::executor::Executor;
@@ -276,9 +278,11 @@ Executor::execute_any_executable(AnyExecutable & any_exec)
   if (any_exec.subscription) {
     execute_subscription(any_exec.subscription);
   }
+  #if IPC_TYPE == IPC_TYPE_DEFAULT
   if (any_exec.subscription_intra_process) {
     execute_intra_process_subscription(any_exec.subscription_intra_process);
   }
+  #endif
   if (any_exec.service) {
     execute_service(any_exec.service);
   }
@@ -338,6 +342,7 @@ Executor::execute_subscription(
   }
 }
 
+#if IPC_TYPE == IPC_TYPE_DEFAULT
 void
 Executor::execute_intra_process_subscription(
   rclcpp::SubscriptionBase::SharedPtr subscription)
@@ -361,6 +366,7 @@ Executor::execute_intra_process_subscription(
     rcl_reset_error();
   }
 }
+#endif
 
 void
 Executor::execute_timer(
