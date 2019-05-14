@@ -24,13 +24,20 @@
 #define QUEUE_TYPE_SIMPLE 1 // "rclcpp/queues/cpqueue.hpp"
 #define QUEUE_TYPE_CONCURRENT 2 // "rclcpp/queues/concurrentqueue.h"
 #define QUEUE_TYPE_BLOCKING 3 // "rclcpp/queues/blockingconcurrentqueue.h"
-#define QUEUE_TYPE QUEUE_TYPE_SIMPLE
 
 #define IPC_TYPE_DEFAULT 1
 #define IPC_TYPE_QUEUE_THREAD 2
 #define IPC_TYPE_QUEUE_SPIN 3
 #define IPC_TYPE_DIRECT_DISPATCH 4
-#define IPC_TYPE IPC_TYPE_DIRECT_DISPATCH
+
+/**
+ * SELECT THE TYPE OF IPC AND THE TYPE OF QUEUE YOU WANT TO TRY
+ */
+
+#define QUEUE_TYPE QUEUE_TYPE_CONCURRENT
+#define IPC_TYPE IPC_TYPE_QUEUE_SPIN
+
+// Some checks to ensure that your choices are consistent
 
 // disable the queues if not needed
 #if IPC_TYPE == IPC_TYPE_DEFAULT || IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
