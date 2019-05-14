@@ -38,6 +38,8 @@
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 namespace rclcpp
 {
 
@@ -99,6 +101,11 @@ public:
   virtual void
   publish(std::unique_ptr<MessageT, MessageDeleter> msg)
   {
+
+    #if IPC_TYPE != IPC_TYPE_DEFAULT
+    assert(0 && "Error. publish for unique pointers is not supported yet");
+    #endif
+
     if (!intra_process_is_enabled_) {
       this->do_inter_process_publish(msg.get());
       return;
@@ -239,6 +246,10 @@ protected:
   void
   do_intra_process_publish(uint64_t message_seq)
   {
+    #if IPC_TYPE != IPC_TYPE_DEFAULT
+    assert(0 && "Error. Trying to use do_intra_process_publish");
+    #endif
+
     rcl_interfaces::msg::IntraProcessMessage ipm;
     ipm.publisher_id = intra_process_publisher_id_;
     ipm.message_sequence = message_seq;
