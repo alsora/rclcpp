@@ -27,6 +27,8 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 using rclcpp::SubscriptionBase;
 
 SubscriptionBase::SubscriptionBase(
@@ -172,6 +174,7 @@ void SubscriptionBase::setup_intra_process(
   IntraProcessManagerWeakPtr weak_ipm,
   const rcl_subscription_options_t & intra_process_options)
 {
+  #if IPC_TYPE == IPC_TYPE_DEFAULT
   std::string intra_process_topic_name = std::string(get_topic_name()) + "/_intra";
   rcl_ret_t ret = rcl_subscription_init(
     intra_process_subscription_handle_.get(),
@@ -192,6 +195,9 @@ void SubscriptionBase::setup_intra_process(
 
     rclcpp::exceptions::throw_from_rcl_error(ret, "could not create intra process subscription");
   }
+  #else
+  (void)intra_process_options;
+  #endif
 
   intra_process_subscription_id_ = intra_process_subscription_id;
   weak_ipm_ = weak_ipm;
