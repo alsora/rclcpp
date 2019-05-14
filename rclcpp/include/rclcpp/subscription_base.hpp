@@ -31,6 +31,8 @@
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 namespace rclcpp
 {
 
@@ -165,6 +167,20 @@ public:
     uint64_t intra_process_subscription_id,
     IntraProcessManagerWeakPtr weak_ipm,
     const rcl_subscription_options_t & intra_process_options);
+
+  /// Some IPC functions that are called from the IPC Manager
+
+  #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD || IPC_TYPE == IPC_TYPE_QUEUE_SPIN
+  virtual void add_shared_ptr_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
+  #endif
+
+  #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD
+  virtual void consume_messages_task() = 0;
+  #endif
+
+  #if IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
+  virtual void direct_dispatch_callback(std::shared_ptr<const void> message_ptr) = 0;
+  #endif
 
 protected:
   template<typename EventCallbackT>
