@@ -56,9 +56,18 @@ public:
   using ConstMessageSharedPtr = std::shared_ptr<const CallbackMessageT>;
 
   std::recursive_mutex reentrant_mutex_;
+
   rcl_guard_condition_t gc_;
-  std::shared_ptr<moodycamel::ConcurrentQueue<ConstMessageSharedPtr> > queue_;
-  //std::shared_ptr<ConsumerProducerQueue<ConstMessageSharedPtr> > queue_;
+
+  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
+  using QueueType = ConsumerProducerQueue<ConstMessageSharedPtr>;
+  #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
+  using QueueType = moodycamel::ConcurrentQueue<ConstMessageSharedPtr>;
+  #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
+  using QueueType = moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr>;
+  #endif
+
+  std::shared_ptr<QueueType> queue_;
   AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
 
   ConstMessageSharedPtr msg;
@@ -67,8 +76,7 @@ public:
 
   void init(
     AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
-    std::shared_ptr<moodycamel::ConcurrentQueue<ConstMessageSharedPtr> > queue_ptr
-    //std::shared_ptr<ConsumerProducerQueue<ConstMessageSharedPtr> > queue_ptr
+    std::shared_ptr<QueueType> queue_ptr
   )
   {
 
@@ -106,16 +114,26 @@ add_to_wait_set(rcl_wait_set_t * wait_set)
 bool
 is_ready(rcl_wait_set_t * wait_set) {
   (void)wait_set;
+
+  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
+  return queue_->length() > 0;
+  #else
   return queue_->size_approx() > 0;
-  //return queue_->length() > 0;
+  #endif
+
 }
 
 void
 execute()
 {
 
+  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
+  queue_->consume(msg);
+  #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
   queue_->try_dequeue(msg);
-  //queue_->consume(msg);
+  #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
+  queue_->wait_dequeue(msg);
+  #endif
 
   any_callback_->dispatch_intra_process(msg, rmw_message_info_t());
 }
