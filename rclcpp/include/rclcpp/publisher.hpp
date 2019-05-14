@@ -148,15 +148,18 @@ public:
     #if IPC_TYPE == IPC_TYPE_DEFAULT
     publish(*msg);
     #else
-    bool inter_process_publish_needed =
-      get_subscription_count() > get_intra_process_subscription_count();
 
-    // Here I should also make some checks on QoS (not volatile?)
-    if (inter_process_publish_needed) {
+    // Not working with RMW dps
+    //bool inter_process_publish_needed =
+    //  get_subscription_count() > get_intra_process_subscription_count();
+
+    // NOTE: BE CAREFUL!
+    // This is a fast hack used to test IPC
+    // If IPC is enabled, INTER-process communication is disabled
+    if (!intra_process_is_enabled_){
       this->do_inter_process_publish(msg.get());
     }
-
-    if (get_intra_process_subscription_count() > 0){
+    else{
       store_intra_process_message(intra_process_publisher_id_, msg);
     }
     #endif
