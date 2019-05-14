@@ -242,12 +242,13 @@ public:
     std::shared_ptr<const MessageT> message)
   {
     uint64_t message_seq = 0;
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
-      intra_process_publisher_id, message_seq);
-
     #if IPC_TYPE == IPC_TYPE_DEFAULT
     using MRBMessageAlloc = typename std::allocator_traits<Alloc>::template rebind_alloc<MessageT>;
     using TypedMRB = typename mapped_ring_buffer::MappedRingBuffer<MessageT, MRBMessageAlloc>;
+
+    mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
+      intra_process_publisher_id, message_seq);
+
     typename TypedMRB::SharedPtr typed_buffer = std::static_pointer_cast<TypedMRB>(buffer);
     if (!typed_buffer) {
       throw std::runtime_error("Typecast failed due to incorrect message type");

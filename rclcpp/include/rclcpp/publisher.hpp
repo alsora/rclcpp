@@ -143,7 +143,21 @@ public:
   virtual void
   publish(const std::shared_ptr<const MessageT> & msg)
   {
+    #if IPC_TYPE == IPC_TYPE_DEFAULT
     publish(*msg);
+    #else
+    bool inter_process_publish_needed =
+      get_subscription_count() > get_intra_process_subscription_count();
+
+    // Here I should also make some checks on QoS (not volatile?)
+    if (inter_process_publish_needed) {
+      assert(0 && "Inter process shouldn't be needed now!");
+      publish(*msg);
+    }
+
+    store_intra_process_message(intra_process_publisher_id_, msg);
+    #endif
+
   }
 
   virtual void
