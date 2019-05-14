@@ -233,7 +233,7 @@ public:
     return intra_process_subscription_handle_;
   }
 
-  #if IPC_TYPE == IPC_TYPE_SPIN
+  #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
   std::shared_ptr<rclcpp::Waitable>
   create_intra_process_waitable()
   {
@@ -301,7 +301,7 @@ private:
   std::shared_ptr<moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr> > typed_queue;
   #endif
 
-  #if IPC_TYPE == IPC_TYPE_SPIN
+  #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
   std::shared_ptr<IPCSubscriptionWaitable<CallbackMessageT, Alloc>> waitable_ptr;
   #endif
 
