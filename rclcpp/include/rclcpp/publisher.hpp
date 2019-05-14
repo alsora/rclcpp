@@ -103,7 +103,9 @@ public:
   {
 
     #if IPC_TYPE != IPC_TYPE_DEFAULT
-    assert(0 && "Error. publish for unique pointers is not supported yet");
+    std::cout<<"Trying to publish unique ptr on "<< this->get_topic_name()<< " NOT SUPPORTED"<<std::endl;
+    return;
+    //assert(0 && "Error. publish for unique pointers is not supported yet");
     #endif
 
     if (!intra_process_is_enabled_) {
@@ -151,11 +153,12 @@ public:
 
     // Here I should also make some checks on QoS (not volatile?)
     if (inter_process_publish_needed) {
-      assert(0 && "Inter process shouldn't be needed now!");
-      publish(*msg);
+      this->do_inter_process_publish(msg.get());
     }
 
-    store_intra_process_message(intra_process_publisher_id_, msg);
+    if (get_intra_process_subscription_count() > 0){
+      store_intra_process_message(intra_process_publisher_id_, msg);
+    }
     #endif
 
   }

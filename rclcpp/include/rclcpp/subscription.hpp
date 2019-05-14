@@ -259,12 +259,14 @@ public:
 
     #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
     typed_queue->add(msg);
-    #else
+    #else //this works for both concurrent and concurrent blocking queues
     typed_queue->enqueue(msg);
     #endif
 
+    #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
     (void)ret;
+    #endif
   }
   #endif
 
