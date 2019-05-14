@@ -35,6 +35,8 @@
 #include "rclcpp/clock.hpp"
 #include "rclcpp/time.hpp"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 namespace rclcpp
 {
 
