@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+#if IPC_TYPE != IPC_TYPE_DEFAULT
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -858,3 +861,5 @@ TEST(TestIntraProcessManager, publisher_out_of_scope_store) {
   EXPECT_THROW(ipm.store_intra_process_message(p1_id, std::move(unique_msg)), std::runtime_error);
   ASSERT_EQ(nullptr, unique_msg);
 }
+
+#endif

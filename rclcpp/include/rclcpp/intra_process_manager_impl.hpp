@@ -38,6 +38,8 @@
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/visibility_control.hpp"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 namespace rclcpp
 {
 namespace intra_process_manager
@@ -70,6 +72,13 @@ public:
   get_publisher_info_for_id(
     uint64_t intra_process_publisher_id,
     uint64_t & message_seq) = 0;
+
+  #if IPC_TYPE != IPC_TYPE_DEFAULT
+  virtual void
+  optimized_ipc_publish(
+    uint64_t intra_process_publisher_id,
+    std::shared_ptr<const void> msg) = 0;
+  #endif
 
   virtual void
   store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq) = 0;
@@ -161,6 +170,44 @@ public:
 
     return info.buffer;
   }
+
+  #if IPC_TYPE != IPC_TYPE_DEFAULT
+  void
+  optimized_ipc_publish(
+    uint64_t intra_process_publisher_id,
+    std::shared_ptr<const void> msg)
+  {
+
+    auto it = publishers_.find(intra_process_publisher_id);
+    if (it == publishers_.end()) {
+      throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
+    }
+    PublisherInfo & info = it->second;
+    auto publisher = info.publisher.lock();
+    if (!publisher) {
+      throw std::runtime_error("publisher has unexpectedly gone out of scope");
+    }
+
+    // Figure out what subscriptions should receive the message.
+    auto & destined_subscriptions =
+      subscription_ids_by_topic_[fixed_size_string(publisher->get_topic_name())];
+
+    for (auto id : destined_subscriptions){
+      auto sub = subscriptions_[id];
+      auto subscriber = sub.lock();
+      if (!subscriber) {
+        throw std::runtime_error("subscriber has unexpectedly gone out of scope");
+      }
+
+      #if IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
+      subscriber->direct_dispatch_callback(msg);
+      #else
+      subscriber->add_shared_ptr_message_to_queue(msg);
+      #endif
+
+    }
+  }
+  #endif
 
   void
   store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq)
