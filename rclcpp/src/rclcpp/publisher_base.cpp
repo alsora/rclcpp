@@ -36,6 +36,8 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp/node.hpp"
 
+#include "rclcpp/intra_process_setting.hpp"
+
 using rclcpp::PublisherBase;
 
 PublisherBase::PublisherBase(
@@ -268,6 +270,8 @@ PublisherBase::setup_intra_process(
     throw std::invalid_argument(
             "intraprocess communication is not allowed with durability qos policy non-volatile");
   }
+
+  #if IPC_TYPE == IPC_TYPE_DEFAULT
   const char * topic_name = this->get_topic_name();
   if (!topic_name) {
     throw std::runtime_error("failed to get topic name");
@@ -295,10 +299,6 @@ PublisherBase::setup_intra_process(
     rclcpp::exceptions::throw_from_rcl_error(ret, "could not create intra process publisher");
   }
 
-  intra_process_publisher_id_ = intra_process_publisher_id;
-  weak_ipm_ = ipm;
-  intra_process_is_enabled_ = true;
-
   // Life time of this object is tied to the publisher handle.
   rmw_publisher_t * publisher_rmw_handle = rcl_publisher_get_rmw_handle(
     &intra_process_publisher_handle_);
@@ -315,4 +315,12 @@ PublisherBase::setup_intra_process(
     rmw_reset_error();
     throw std::runtime_error(msg);
   }
+  #else
+  (void)intra_process_options;
+  #endif
+
+  intra_process_publisher_id_ = intra_process_publisher_id;
+  weak_ipm_ = ipm;
+  intra_process_is_enabled_ = true;
+
 }
