@@ -149,19 +149,24 @@ public:
     publish(*msg);
     #else
 
-    // Not working with RMW dps
-    //bool inter_process_publish_needed =
-    //  get_subscription_count() > get_intra_process_subscription_count();
+      // Not working with RMW dps
+      //bool inter_process_publish_needed =
+      //  get_subscription_count() > get_intra_process_subscription_count();
 
-    // NOTE: BE CAREFUL!
-    // This is a fast hack used to test IPC
-    // If IPC is enabled, INTER-process communication is disabled
-    if (!intra_process_is_enabled_){
-      this->do_inter_process_publish(msg.get());
-    }
-    else{
+      // NOTE: BE CAREFUL!
+      // This is a fast hack used to test IPC
+
+      #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
       store_intra_process_message(intra_process_publisher_id_, msg);
-    }
+      #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
+      this->do_inter_process_publish(msg.get());
+      #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
+      store_intra_process_message(intra_process_publisher_id_, msg);
+      std::cout<<"Stored intra process message"<<std::endl;
+      this->do_inter_process_publish(msg.get());
+      std::cout<<"Done inter process publish"<<std::endl;
+      #endif
+
     #endif
 
   }
