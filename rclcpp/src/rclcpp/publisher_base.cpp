@@ -316,6 +316,7 @@ PublisherBase::setup_intra_process(
     throw std::runtime_error(msg);
   }
   #else
+  intra_process_rmw_gid_ = rmw_gid_;
   (void)intra_process_options;
   #endif
 
