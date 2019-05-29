@@ -162,9 +162,7 @@ public:
       this->do_inter_process_publish(msg.get());
       #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
       store_intra_process_message(intra_process_publisher_id_, msg);
-      std::cout<<"Stored intra process message"<<std::endl;
       this->do_inter_process_publish(msg.get());
-      std::cout<<"Done inter process publish"<<std::endl;
       #endif
 
     #endif
