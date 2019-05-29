@@ -30,12 +30,18 @@
 #define IPC_TYPE_QUEUE_SPIN 3
 #define IPC_TYPE_DIRECT_DISPATCH 4
 
+// this is needed for DPS middleware that does not allow to count subscriptions
+#define COMM_TYPE_INTRA_ONLY 1
+#define COMM_TYPE_INTER_ONLY 2
+#define COMM_TYPE_INTRA_INTER 3
+
 /**
  * SELECT THE TYPE OF IPC AND THE TYPE OF QUEUE YOU WANT TO TRY
  */
 
 #define QUEUE_TYPE QUEUE_TYPE_CONCURRENT
 #define IPC_TYPE IPC_TYPE_QUEUE_SPIN
+#define COMM_TYPE COMM_TYPE_INTRA_INTER
 
 // Some checks to ensure that your choices are consistent
 
