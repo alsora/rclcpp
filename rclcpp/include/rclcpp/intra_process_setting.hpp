@@ -20,15 +20,6 @@
  * Preprocessor directives for selecting IPC implementation
  */
 
-#define QUEUE_TYPE_NO_QUEUE 0
-#define QUEUE_TYPE_SIMPLE 1 // "rclcpp/queues/cpqueue.hpp"
-#define QUEUE_TYPE_CONCURRENT 2 // "rclcpp/queues/concurrentqueue.h"
-#define QUEUE_TYPE_BLOCKING 3 // "rclcpp/queues/blockingconcurrentqueue.h"
-
-#define IPC_TYPE_DEFAULT 1
-#define IPC_TYPE_QUEUE_THREAD 2
-#define IPC_TYPE_QUEUE_SPIN 3
-#define IPC_TYPE_DIRECT_DISPATCH 4
 
 // this is needed for DPS middleware that does not allow to count subscriptions
 #define COMM_TYPE_INTRA_ONLY 1
@@ -36,25 +27,10 @@
 #define COMM_TYPE_INTRA_INTER 3
 
 /**
- * SELECT THE TYPE OF IPC AND THE TYPE OF QUEUE YOU WANT TO TRY
+ * SELECT THE TYPE OF COMMUNICATION USED BY YOUR APP
  */
 
-#define QUEUE_TYPE QUEUE_TYPE_SIMPLE
-#define IPC_TYPE IPC_TYPE_QUEUE_SPIN
 #define COMM_TYPE COMM_TYPE_INTRA_ONLY
-
-// Some checks to ensure that your choices are consistent
-
-// disable the queues if not needed
-#if IPC_TYPE == IPC_TYPE_DEFAULT || IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
-#undef QUEUE_TYPE
-#define QUEUE_TYPE QUEUE_TYPE_NO_QUEUE
-#endif
-
-// ensure that a queue is present if the IPC type requires it
-#if (IPC_TYPE == IPC_TYPE_QUEUE_THREAD || IPC_TYPE == IPC_TYPE_QUEUE_SPIN) && QUEUE_TYPE == QUEUE_TYPE_NO_QUEUE
-#error "The IPC type requires a queue, but it is set to NO_QUEUE"
-#endif
 
 
 namespace rclcpp

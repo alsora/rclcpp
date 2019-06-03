@@ -45,8 +45,6 @@
 #include "rclcpp/waitable.hpp"
 
 
-#include "rclcpp/queues/blockingconcurrentqueue.h"
-#include "rclcpp/queues/concurrentqueue.h"
 #include "rclcpp/queues/cpqueue.hpp"
 
 #include "rclcpp/subscription_ipc_waitable.hpp"
@@ -117,15 +115,8 @@ public:
     }
 
     // construct the queue
-    #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
     bool need_shared_ptr = any_callback_.use_take_shared_method();
     typed_queue = std::make_shared<ConsumerProducerQueue<ConstMessageSharedPtr>>(100, need_shared_ptr);
-    #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
-    typed_queue = std::make_shared<moodycamel::ConcurrentQueue<ConstMessageSharedPtr>>();
-    #elif QUEUE_TYPE ==QUEUE_TYPE_BLOCKING
-    typed_queue = std::make_shared<moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr>>();
-    #endif
-
   }
 
   /// Support dynamically setting the message memory strategy.
@@ -241,7 +232,6 @@ public:
     return intra_process_subscription_handle_;
   }
 
-  #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
   std::shared_ptr<rclcpp::Waitable>
   create_intra_process_waitable()
   {
@@ -251,87 +241,21 @@ public:
     waitable_ptr->init(&any_callback_, typed_queue);
     return waitable_ptr;
   }
-  #endif
 
-  #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD || IPC_TYPE == IPC_TYPE_QUEUE_SPIN
   void add_shared_ptr_message_to_queue(std::shared_ptr<const void> message_ptr)
   {
     auto msg = std::static_pointer_cast<const CallbackMessageT>(message_ptr);
 
-    #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
     typed_queue->add(msg);
-    #else //this works for both concurrent and concurrent blocking queues
-    typed_queue->enqueue(msg);
-    #endif
 
-    #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
     (void)ret;
-    #endif
   }
-  #endif
-
-  #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD || IPC_TYPE == IPC_TYPE_QUEUE_SPIN
-  void add_unique_ptr_message_to_queue(std::unique_ptr<void> message_ptr)
-  {
-    auto msg = std::static_pointer_cast<CallbackMessageT>(message_ptr);
-
-    #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
-    typed_queue->add(msg);
-    #else //this works for both concurrent and concurrent blocking queues
-    typed_queue->enqueue(msg);
-    #endif
-
-    #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
-    auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
-    (void)ret;
-    #endif
-  }
-  #endif
-
-  #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD
-  void consume_messages_task()
-  {
-    ConstMessageSharedPtr msg;
-    rmw_message_info_t info;
-    while(rclcpp::ok()){
-
-      #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
-      typed_queue->consume(msg);
-      #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
-      typed_queue->try_dequeue(msg);
-      #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
-      typed_queue->wait_dequeue(msg);
-      #endif
-
-      any_callback_.dispatch_intra_process(msg, info);
-    }
-  }
-  #endif
-
-  #if IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
-  void direct_dispatch_callback(std::shared_ptr<const void> message_ptr)
-  {
-    auto msg = std::static_pointer_cast<const CallbackMessageT>(message_ptr);
-    any_callback_.dispatch_intra_process(msg, rmw_message_info_t());
-  }
-  #endif
-
-
 
 private:
 
-  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
   std::shared_ptr<ConsumerProducerQueue<ConstMessageSharedPtr> > typed_queue;
-  #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
-  std::shared_ptr<moodycamel::ConcurrentQueue<ConstMessageSharedPtr> > typed_queue;
-  #elif QUEUE_TYPE ==QUEUE_TYPE_BLOCKING
-  std::shared_ptr<moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr> > typed_queue;
-  #endif
-
-  #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
   std::shared_ptr<IPCSubscriptionWaitable<CallbackMessageT, Alloc>> waitable_ptr;
-  #endif
 
   void
   take_intra_process_message(

@@ -305,12 +305,10 @@ protected:
   execute_subscription(
     rclcpp::SubscriptionBase::SharedPtr subscription);
 
-  #if IPC_TYPE == IPC_TYPE_DEFAULT
-  RCLCPP_PUBLIC
-  static void
-  execute_intra_process_subscription(
-    rclcpp::SubscriptionBase::SharedPtr subscription);
-  #endif
+  //RCLCPP_PUBLIC
+  //static void
+  //execute_intra_process_subscription(
+  //  rclcpp::SubscriptionBase::SharedPtr subscription);
 
   RCLCPP_PUBLIC
   static void

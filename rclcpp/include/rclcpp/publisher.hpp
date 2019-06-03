@@ -102,56 +102,26 @@ public:
   publish(std::unique_ptr<MessageT, MessageDeleter> msg)
   {
 
-    #if IPC_TYPE == IPC_TYPE_DEFAULT
-    if (!intra_process_is_enabled_) {
-      this->do_inter_process_publish(msg.get());
-      return;
-    }
-    // If an interprocess subscription exist, then the unique_ptr is promoted
-    // to a shared_ptr and published.
-    // This allows doing the intraprocess publish first and then doing the
-    // interprocess publish, resulting in lower publish-to-subscribe latency.
-    // It's not possible to do that with an unique_ptr,
-    // as do_intra_process_publish takes the ownership of the message.
-    uint64_t message_seq;
-    bool inter_process_publish_needed =
-      get_subscription_count() > get_intra_process_subscription_count();
-    MessageSharedPtr shared_msg;
-    if (inter_process_publish_needed) {
-      shared_msg = std::move(msg);
-      message_seq =
-        store_intra_process_message(intra_process_publisher_id_, shared_msg);
-    } else {
-      message_seq =
-        store_intra_process_message(intra_process_publisher_id_, std::move(msg));
-    }
-    this->do_intra_process_publish(message_seq);
-    if (inter_process_publish_needed) {
-      this->do_inter_process_publish(shared_msg.get());
-    }
+    // Not working with RMW dps
+    //bool inter_process_publish_needed =
+    //  get_subscription_count() > get_intra_process_subscription_count();
+
+    // NOTE: BE CAREFUL!
+    // This is a fast hack used to test IPC
+
+    #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
+    std::shared_ptr<MessageT> shared_msg = std::move(msg);
+    store_intra_process_message(intra_process_publisher_id_, shared_msg);
     return;
-    #else
-      // Not working with RMW dps
-      //bool inter_process_publish_needed =
-      //  get_subscription_count() > get_intra_process_subscription_count();
-
-      // NOTE: BE CAREFUL!
-      // This is a fast hack used to test IPC
-
-      #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
-      std::shared_ptr<MessageT> shared_msg = std::move(msg);
-      store_intra_process_message(intra_process_publisher_id_, shared_msg);
-      return;
-      #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
-      this->do_inter_process_publish(msg.get());
-      return;
-      #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
-      std::shared_ptr<MessageT> shared_msg = std::move(msg);
-      store_intra_process_message(intra_process_publisher_id_, shared_msg);
-      this->do_inter_process_publish(shared_msg.get());
-      #endif
-
+    #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
+    this->do_inter_process_publish(msg.get());
+    return;
+    #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
+    std::shared_ptr<MessageT> shared_msg = std::move(msg);
+    store_intra_process_message(intra_process_publisher_id_, shared_msg);
+    this->do_inter_process_publish(shared_msg.get());
     #endif
+
   }
 
 // Skip deprecated attribute in windows, as it raise a warning in template specialization.
@@ -163,38 +133,31 @@ public:
   virtual void
   publish(const std::shared_ptr<const MessageT> & msg)
   {
-    #if IPC_TYPE == IPC_TYPE_DEFAULT
-    publish(*msg);
-    #else
 
-      // Not working with RMW dps
-      //bool inter_process_publish_needed =
-      //  get_subscription_count() > get_intra_process_subscription_count();
+    // Not working with RMW dps
+    //bool inter_process_publish_needed =
+    //  get_subscription_count() > get_intra_process_subscription_count();
 
-      // NOTE: BE CAREFUL!
-      // This is a fast hack used to test IPC
+    // NOTE: BE CAREFUL!
+    // This is a fast hack used to test IPC
 
-      #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
-      store_intra_process_message(intra_process_publisher_id_, msg);
-      #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
-      this->do_inter_process_publish(msg.get());
-      #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
-      store_intra_process_message(intra_process_publisher_id_, msg);
-      this->do_inter_process_publish(msg.get());
-      #endif
-
+    #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
+    store_intra_process_message(intra_process_publisher_id_, msg);
+    #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
+    this->do_inter_process_publish(msg.get());
+    #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
+    store_intra_process_message(intra_process_publisher_id_, msg);
+    this->do_inter_process_publish(msg.get());
     #endif
-
   }
 
   virtual void
   publish(const MessageT & msg)
   {
-    #if IPC_TYPE != IPC_TYPE_DEFAULT
     std::cout<<"Error: publish(const MessageT & msg) not supported yet"<<std::endl;
     return;
-    #endif
 
+    /*
     // Avoid allocating when not using intra process.
     if (!intra_process_is_enabled_) {
       // In this case we're not using intra process.
@@ -207,6 +170,7 @@ public:
     MessageAllocTraits::construct(*message_allocator_.get(), ptr, msg);
     MessageUniquePtr unique_msg(ptr, message_deleter_);
     this->publish(std::move(unique_msg));
+    */
   }
 
 // Skip deprecated attribute in windows, as it raise a warning in template specialization.
@@ -217,15 +181,14 @@ public:
   virtual void
   publish(const MessageT * msg)
   {
-    #if IPC_TYPE != IPC_TYPE_DEFAULT
     std::cout<<"Error: publish(const MessageT * msg) not supported yet"<<std::endl;
     return;
-    #endif
-
+    /*
     if (!msg) {
       throw std::runtime_error("msg argument is nullptr");
     }
     return this->publish(*msg);
+    */
   }
 
   void
@@ -297,10 +260,9 @@ protected:
   void
   do_intra_process_publish(uint64_t message_seq)
   {
-    #if IPC_TYPE != IPC_TYPE_DEFAULT
     assert(0 && "Error. Trying to use do_intra_process_publish");
-    #endif
 
+    /*
     rcl_interfaces::msg::IntraProcessMessage ipm;
     ipm.publisher_id = intra_process_publisher_id_;
     ipm.message_sequence = message_seq;
@@ -318,6 +280,7 @@ protected:
     if (RCL_RET_OK != status) {
       rclcpp::exceptions::throw_from_rcl_error(status, "failed to publish intra process message");
     }
+    */
   }
 
   uint64_t

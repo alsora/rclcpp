@@ -116,12 +116,6 @@ NodeTopics::create_subscription(
     auto options_copy = subscription_options;
     options_copy.ignore_local_publications = false;
     subscription->setup_intra_process(intra_process_subscription_id, ipm, options_copy);
-
-    #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD
-    std::thread worker_thread =
-      std::thread(&rclcpp::SubscriptionBase::consume_messages_task, subscription);
-    worker_thread.detach();
-    #endif
   }
 
   // Return the completed subscription.

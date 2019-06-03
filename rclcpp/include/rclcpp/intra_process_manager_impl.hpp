@@ -73,12 +73,10 @@ public:
     uint64_t intra_process_publisher_id,
     uint64_t & message_seq) = 0;
 
-  #if IPC_TYPE != IPC_TYPE_DEFAULT
   virtual void
   optimized_ipc_publish(
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const void> msg) = 0;
-  #endif
 
   virtual void
   store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq) = 0;
@@ -171,7 +169,6 @@ public:
     return info.buffer;
   }
 
-  #if IPC_TYPE != IPC_TYPE_DEFAULT
   void
   optimized_ipc_publish(
     uint64_t intra_process_publisher_id,
@@ -199,15 +196,10 @@ public:
         throw std::runtime_error("subscriber has unexpectedly gone out of scope");
       }
 
-      #if IPC_TYPE == IPC_TYPE_DIRECT_DISPATCH
-      subscriber->direct_dispatch_callback(msg);
-      #else
       subscriber->add_shared_ptr_message_to_queue(msg);
-      #endif
 
     }
   }
-  #endif
 
   void
   store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq)

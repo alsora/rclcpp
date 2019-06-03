@@ -59,7 +59,7 @@ public:
         return cpq.size();
     }
 
-    bool is_shared_ptr_queue() const
+    bool is_shared_ptr() const
     {
         return is_shared_ptr_queue;
     }

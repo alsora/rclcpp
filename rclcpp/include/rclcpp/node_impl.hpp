@@ -131,8 +131,7 @@ Node::create_subscription(
     options,
     msg_mem_strat);
 
-  // eventually creates a waitable for the IPC queue linked with this subscription
-  #if IPC_TYPE == IPC_TYPE_QUEUE_SPIN
+  // creates a waitable for the IPC queue linked with this subscription
   bool use_intra_process;
   switch (options.use_intra_process_comm) {
     case IntraProcessSetting::Enable:
@@ -153,7 +152,6 @@ Node::create_subscription(
       sub->create_intra_process_waitable();
     this->get_node_waitables_interface()->add_waitable(waitable_ptr, nullptr);
   }
-  #endif
 
   return sub;
 }
