@@ -41,7 +41,7 @@
 
 #define QUEUE_TYPE QUEUE_TYPE_SIMPLE
 #define IPC_TYPE IPC_TYPE_QUEUE_SPIN
-#define COMM_TYPE COMM_TYPE_INTRA_INTER
+#define COMM_TYPE COMM_TYPE_INTRA_ONLY
 
 // Some checks to ensure that your choices are consistent
 

@@ -102,12 +102,7 @@ public:
   publish(std::unique_ptr<MessageT, MessageDeleter> msg)
   {
 
-    #if IPC_TYPE != IPC_TYPE_DEFAULT
-    std::cout<<"Trying to publish unique ptr on "<< this->get_topic_name()<< " NOT SUPPORTED"<<std::endl;
-    return;
-    //assert(0 && "Error. publish for unique pointers is not supported yet");
-    #endif
-
+    #if IPC_TYPE == IPC_TYPE_DEFAULT
     if (!intra_process_is_enabled_) {
       this->do_inter_process_publish(msg.get());
       return;
@@ -134,6 +129,29 @@ public:
     if (inter_process_publish_needed) {
       this->do_inter_process_publish(shared_msg.get());
     }
+    return;
+    #else
+      // Not working with RMW dps
+      //bool inter_process_publish_needed =
+      //  get_subscription_count() > get_intra_process_subscription_count();
+
+      // NOTE: BE CAREFUL!
+      // This is a fast hack used to test IPC
+
+      #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
+      std::shared_ptr<MessageT> shared_msg = std::move(msg);
+      store_intra_process_message(intra_process_publisher_id_, shared_msg);
+      return;
+      #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
+      this->do_inter_process_publish(msg.get());
+      return;
+      #elif COMM_TYPE == COMM_TYPE_INTRA_INTER
+      std::shared_ptr<MessageT> shared_msg = std::move(msg);
+      store_intra_process_message(intra_process_publisher_id_, shared_msg);
+      this->do_inter_process_publish(shared_msg.get());
+      #endif
+
+    #endif
   }
 
 // Skip deprecated attribute in windows, as it raise a warning in template specialization.
@@ -172,6 +190,11 @@ public:
   virtual void
   publish(const MessageT & msg)
   {
+    #if IPC_TYPE != IPC_TYPE_DEFAULT
+    std::cout<<"Error: publish(const MessageT & msg) not supported yet"<<std::endl;
+    return;
+    #endif
+
     // Avoid allocating when not using intra process.
     if (!intra_process_is_enabled_) {
       // In this case we're not using intra process.
@@ -194,6 +217,11 @@ public:
   virtual void
   publish(const MessageT * msg)
   {
+    #if IPC_TYPE != IPC_TYPE_DEFAULT
+    std::cout<<"Error: publish(const MessageT * msg) not supported yet"<<std::endl;
+    return;
+    #endif
+
     if (!msg) {
       throw std::runtime_error("msg argument is nullptr");
     }
@@ -323,8 +351,11 @@ protected:
     if (!msg) {
       throw std::runtime_error("cannot publisher msg which is a null pointer");
     }
+
+    std::shared_ptr<MessageT> shared_msg = std::move(msg);
+
     uint64_t message_seq =
-      ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, std::move(msg));
+      ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, shared_msg);
     return message_seq;
   }
 
