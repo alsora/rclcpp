@@ -70,7 +70,7 @@ public:
   std::shared_ptr<QueueType> queue_;
   AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
 
-  ConstMessageSharedPtr msg;
+  ConstMessageSharedPtr shared_msg;
 
   IPCSubscriptionWaitable(){}
 
@@ -128,14 +128,19 @@ execute()
 {
 
   #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
-  queue_->consume(msg);
+  queue_->consume(shared_msg);
   #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
-  queue_->try_dequeue(msg);
+  queue_->try_dequeue(shared_msg);
   #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
-  queue_->wait_dequeue(msg);
+  queue_->wait_dequeue(shared_msg);
   #endif
 
-  any_callback_->dispatch_intra_process(msg, rmw_message_info_t());
+  if (any_callback_->use_take_shared_method()) {
+    any_callback_->dispatch_intra_process(shared_msg, rmw_message_info_t());
+  } else {
+    auto unique_msg = std::make_unique<CallbackMessageT>(*shared_msg);
+    any_callback_->dispatch_intra_process(std::move(unique_msg), rmw_message_info_t());
+  }
 }
 
 };
