@@ -174,6 +174,10 @@ public:
   virtual void add_shared_ptr_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
   #endif
 
+  #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD || IPC_TYPE == IPC_TYPE_QUEUE_SPIN
+  virtual void add_unique_ptr_message_to_queue(std::unique<void> message_ptr) = 0;
+  #endif
+
   #if IPC_TYPE == IPC_TYPE_QUEUE_THREAD
   virtual void consume_messages_task() = 0;
   #endif
