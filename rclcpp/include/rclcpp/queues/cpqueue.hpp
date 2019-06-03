@@ -12,8 +12,14 @@ class ConsumerProducerQueue
     std::mutex mutex;
     size_t maxSize;
     std::queue<T> cpq;
+
+    // if true, this queue is storing shared_ptr<MessageT>
+    // if false, this queue is storing unique_ptr<MessageT>
+    bool is_shared_ptr_queue;
+
 public:
-    ConsumerProducerQueue(size_t mxsz) : maxSize(mxsz)
+    ConsumerProducerQueue(size_t mxsz, bool is_shared)
+    : maxSize(mxsz), is_shared_ptr_queue(is_shared)
     { }
 
     void add(T request)
@@ -51,6 +57,11 @@ public:
     int length() const
     {
         return cpq.size();
+    }
+
+    bool is_shared_ptr_queue() const
+    {
+        return is_shared_ptr_queue;
     }
 
     void clear()
