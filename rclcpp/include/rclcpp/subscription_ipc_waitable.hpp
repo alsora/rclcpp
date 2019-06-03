@@ -116,7 +116,8 @@ is_ready(rcl_wait_set_t * wait_set) {
   (void)wait_set;
 
   #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
-  return queue_->length() > 0;
+  return queue_->has_data();
+  //return queue_->length() > 0;
   #else
   return queue_->size_approx() > 0;
   #endif
@@ -134,7 +135,6 @@ execute()
   #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
   queue_->wait_dequeue(msg);
   #endif
-
   any_callback_->dispatch_intra_process(msg, rmw_message_info_t());
 }
 
