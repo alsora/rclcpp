@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-#if IPC_TYPE != IPC_TYPE_DEFAULT
+#if 1 == 0
 
 #include <memory>
 #include <string>

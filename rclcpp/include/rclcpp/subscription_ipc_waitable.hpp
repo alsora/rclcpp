@@ -59,13 +59,7 @@ public:
 
   rcl_guard_condition_t gc_;
 
-  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
   using QueueType = ConsumerProducerQueue<ConstMessageSharedPtr>;
-  #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
-  using QueueType = moodycamel::ConcurrentQueue<ConstMessageSharedPtr>;
-  #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
-  using QueueType = moodycamel::BlockingConcurrentQueue<ConstMessageSharedPtr>;
-  #endif
 
   std::shared_ptr<QueueType> queue_;
   AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
@@ -115,25 +109,13 @@ bool
 is_ready(rcl_wait_set_t * wait_set) {
   (void)wait_set;
 
-  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
   return queue_->length() > 0;
-  #else
-  return queue_->size_approx() > 0;
-  #endif
-
 }
 
 void
 execute()
 {
-
-  #if QUEUE_TYPE == QUEUE_TYPE_SIMPLE
   queue_->consume(shared_msg);
-  #elif QUEUE_TYPE == QUEUE_TYPE_CONCURRENT
-  queue_->try_dequeue(shared_msg);
-  #elif QUEUE_TYPE == QUEUE_TYPE_BLOCKING
-  queue_->wait_dequeue(shared_msg);
-  #endif
 
   if (any_callback_->use_take_shared_method()) {
     any_callback_->dispatch_intra_process(shared_msg, rmw_message_info_t());

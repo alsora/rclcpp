@@ -3,6 +3,23 @@
 
 This branch contains an alternative implementation for ROS2 Intra-Process Communication that does not use the underlying RMW.
 
+
+### Setup
+
+This branch allows to test the new IPC implementation also in combination with RMW DPS.
+However, at the moment, this middleware does not allow introspection. This means that you can't count the number of subscriptions to a topic, which is the method currently used to determine whether you have to publish intra-process, inter-process or both.
+
+As a solution, you have to hardcode this decision before building the package.
+
+Go to `~/ros2_ws/src/rclcpp/rclcpp/include/rclcpp/intra_process_setting.hpp`
+
+At line 33 select one of the available options
+
+- COMM_TYPE_INTRA_ONLY 1
+- COMM_TYPE_INTER_ONLY 2
+- COMM_TYPE_INTRA_INTER 3
+
+
 ### Build
 
 Create a ROS2 workspace for master
@@ -27,24 +44,3 @@ Build the workspace
 cd ~/ros2_ws
 colcon build
 ```
-
-
-### Test different IPC implementations
-
-This repository contains different implementations for IPC. Mostly based on the use of buffers.
-Moreover, there are different buffer library to choose.
-
-You can make your choices by setting some preprocessor variables before building.
-
-Go to `~/ros2_ws/src/rclcpp/rclcpp/include/rclcpp/intra_process_setting.hpp`
-
-
-Lines from 23 to 31 provides you the possible values.
-
-Set the chosen values at lines 37 and 38.
-
- - IPC_TYPE_DEFAULT: is the standard rclcpp IPC mechanism
- - IPC_TYPE_QUEUE_THREAD: each subscriber creates a thread where checks when new messages are added to its buffer
- - IPC_TYPE_QUEUE_SPIN: the presence of new messages in the buffer is notified to `rclcpp::spin()` using guard conditions.
- - IPC_TYPE_DIRECT_DISPATCH: the publisher direclty invokes the subscriptions' callbacks from its thread.
-

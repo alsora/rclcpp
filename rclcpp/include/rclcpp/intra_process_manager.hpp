@@ -241,30 +241,10 @@ public:
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const MessageT> message)
   {
-    uint64_t message_seq = 0;
-    #if IPC_TYPE == IPC_TYPE_DEFAULT
-    using MRBMessageAlloc = typename std::allocator_traits<Alloc>::template rebind_alloc<MessageT>;
-    using TypedMRB = typename mapped_ring_buffer::MappedRingBuffer<MessageT, MRBMessageAlloc>;
 
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer = impl_->get_publisher_info_for_id(
-      intra_process_publisher_id, message_seq);
-
-    typename TypedMRB::SharedPtr typed_buffer = std::static_pointer_cast<TypedMRB>(buffer);
-    if (!typed_buffer) {
-      throw std::runtime_error("Typecast failed due to incorrect message type");
-    }
-    // Insert the message into the ring buffer using the message_seq to identify it.
-    bool did_replace = typed_buffer->push_and_replace(message_seq, message);
-    // TODO(wjwwood): do something when a message was displaced. log debug?
-    (void)did_replace;  // Avoid unused variable warning.
-
-    impl_->store_intra_process_message(intra_process_publisher_id, message_seq);
-    #else
     impl_->optimized_ipc_publish(intra_process_publisher_id, message);
-    #endif
 
-    // Return the message sequence which is sent to the subscription.
-    return message_seq;
+    return 0;
   }
 
   template<
@@ -276,10 +256,9 @@ public:
     std::unique_ptr<MessageT, Deleter> message)
   {
 
-    #if IPC_TYPE != IPC_TYPE_DEFAULT
     assert(0 && "Error. store_intra_process_message for unique pointers is not supported yet");
-    #endif
 
+    /*
     using MRBMessageAlloc = typename std::allocator_traits<Alloc>::template rebind_alloc<MessageT>;
     using TypedMRB = typename mapped_ring_buffer::MappedRingBuffer<MessageT, MRBMessageAlloc>;
     uint64_t message_seq = 0;
@@ -296,9 +275,9 @@ public:
     (void)did_replace;  // Avoid unused variable warning.
 
     impl_->store_intra_process_message(intra_process_publisher_id, message_seq);
-
+    */
     // Return the message sequence which is sent to the subscription.
-    return message_seq;
+    return 0;
   }
 
   /// Take an intra process message.
