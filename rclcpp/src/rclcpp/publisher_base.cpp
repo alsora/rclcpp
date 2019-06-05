@@ -252,13 +252,6 @@ PublisherBase::operator==(const rmw_gid_t * gid) const
   return result;
 }
 
-rclcpp::mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-PublisherBase::make_mapped_ring_buffer(size_t size) const
-{
-  (void)size;
-  return nullptr;
-}
-
 void
 PublisherBase::setup_intra_process(
   uint64_t intra_process_publisher_id,

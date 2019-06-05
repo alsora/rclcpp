@@ -33,7 +33,6 @@
 #include "rmw/validate_full_topic_name.h"
 
 #include "rclcpp/macros.hpp"
-#include "rclcpp/mapped_ring_buffer.hpp"
 #include "rclcpp/publisher_base.hpp"
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -61,17 +60,10 @@ public:
 
   virtual void add_publisher(
     uint64_t id,
-    PublisherBase::WeakPtr publisher,
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr mrb,
-    size_t size) = 0;
+    PublisherBase::SharedPtr publisher) = 0;
 
   virtual void
   remove_publisher(uint64_t intra_process_publisher_id) = 0;
-
-  virtual mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  get_publisher_info_for_id(
-    uint64_t intra_process_publisher_id,
-    uint64_t & message_seq) = 0;
 
   virtual void
   optimized_ipc_publish_shared(
@@ -82,13 +74,6 @@ public:
   optimized_ipc_publish_unique(
     uint64_t intra_process_publisher_id,
     void* msg) = 0;
-
-  virtual mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  take_intra_process_message(
-    uint64_t intra_process_publisher_id,
-    uint64_t message_sequence_number,
-    uint64_t requesting_subscriptions_intra_process_id,
-    size_t & size) = 0;
 
   virtual bool
   matches_any_publishers(const rmw_gid_t * id) const = 0;
@@ -110,7 +95,9 @@ public:
   void
   add_subscription(uint64_t id, SubscriptionBase::SharedPtr subscription)
   {
-    subscriptions_[id] = subscription;
+    subscriptions_[id].subscription = subscription;
+    subscriptions_[id].topic_name = subscription->get_topic_name();
+
     subscription_ids_by_topic_[fixed_size_string(subscription->get_topic_name())].insert(id);
   }
 
@@ -121,54 +108,24 @@ public:
     for (auto & pair : subscription_ids_by_topic_) {
       pair.second.erase(intra_process_subscription_id);
     }
-    // Iterate over all publisher infos and all stored subscription id's and
-    // remove references to this subscription's id.
-    for (auto & publisher_pair : publishers_) {
-      for (auto & sub_pair : publisher_pair.second.target_subscriptions_by_message_sequence) {
-        sub_pair.second.erase(intra_process_subscription_id);
-      }
-    }
   }
 
   void add_publisher(
     uint64_t id,
-    PublisherBase::WeakPtr publisher,
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr mrb,
-    size_t size)
+    PublisherBase::SharedPtr publisher)
   {
-    publishers_[id].publisher = publisher;
-    // As long as the size of the ring buffer is less than the max sequence number, we're safe.
-    if (size > std::numeric_limits<uint64_t>::max()) {
-      throw std::invalid_argument("the calculated buffer size is too large");
-    }
-    publishers_[id].sequence_number.store(0);
+    PublisherInfo pub_info;
+    pub_info.publisher = publisher;
+    pub_info.topic_name = publisher->get_topic_name();
 
-    publishers_[id].buffer = mrb;
-    publishers_[id].target_subscriptions_by_message_sequence.reserve(size);
+    publishers_[id].publisher = publisher;
+    publishers_[id].topic_name = publisher->get_topic_name();
   }
 
   void
   remove_publisher(uint64_t intra_process_publisher_id)
   {
     publishers_.erase(intra_process_publisher_id);
-  }
-
-  // return message_seq and mrb
-  mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  get_publisher_info_for_id(
-    uint64_t intra_process_publisher_id,
-    uint64_t & message_seq)
-  {
-    std::lock_guard<std::mutex> lock(runtime_mutex_);
-    auto it = publishers_.find(intra_process_publisher_id);
-    if (it == publishers_.end()) {
-      throw std::runtime_error("get_publisher_info_for_id called with invalid publisher id");
-    }
-    PublisherInfo & info = it->second;
-    // Calculate the next message sequence number.
-    message_seq = info.sequence_number.fetch_add(1);
-
-    return info.buffer;
   }
 
   void
@@ -178,26 +135,28 @@ public:
   {
     auto it = publishers_.find(intra_process_publisher_id);
     if (it == publishers_.end()) {
-      throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
+      throw std::runtime_error("optimized_ipc_publish_shared called with invalid publisher id");
     }
     PublisherInfo & info = it->second;
+    /*
     auto publisher = info.publisher.lock();
     if (!publisher) {
       throw std::runtime_error("publisher has unexpectedly gone out of scope");
     }
+    */
 
     // Figure out what subscriptions should receive the message.
     auto & destined_subscriptions =
-      subscription_ids_by_topic_[fixed_size_string(publisher->get_topic_name())];
+      subscription_ids_by_topic_[fixed_size_string(info.topic_name)];
 
     for (auto id : destined_subscriptions){
-      auto sub = subscriptions_[id];
-      auto subscriber = sub.lock();
+      SubscriptionInfo & info = subscriptions_[id];
+      auto subscriber = info.subscription.lock();
       if (!subscriber) {
         throw std::runtime_error("subscriber has unexpectedly gone out of scope");
       }
 
-      subscriber->add_shared_message_to_queue(msg);
+      subscriber->add_message_to_queue(msg);
     }
   }
 
@@ -211,77 +170,33 @@ public:
       throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
     }
     PublisherInfo & info = it->second;
+    /*
     auto publisher = info.publisher.lock();
     if (!publisher) {
       throw std::runtime_error("publisher has unexpectedly gone out of scope");
     }
+    */
 
     // Figure out what subscriptions should receive the message.
     auto & destined_subscriptions =
-      subscription_ids_by_topic_[fixed_size_string(publisher->get_topic_name())];
-
-    // Here I should order subscriptions: first the ones that wants a shared_ptr
-    // then the ones that wants a unique_ptr
-
+      subscription_ids_by_topic_[fixed_size_string(info.topic_name)];
 
     for (auto iter = destined_subscriptions.begin(); iter != destined_subscriptions.end(); ++iter){
       auto id = *iter;
-      auto sub = subscriptions_[id];
-      auto subscriber = sub.lock();
+      SubscriptionInfo & info = subscriptions_[id];
+      auto subscriber = info.subscription.lock();
       if (!subscriber) {
         throw std::runtime_error("subscriber has unexpectedly gone out of scope");
       }
       // if this is the last iteration, we give up ownership
       if (std::next(iter) == destined_subscriptions.end()) {
-        subscriber->add_owned_message_to_queue(msg, false);
+        subscriber->add_message_to_queue(msg, false);
       }
       // otherwise we copy the message
       else{
-        subscriber->add_owned_message_to_queue(msg, true);
+        subscriber->add_message_to_queue(msg, true);
       }
     }
-  }
-
-  mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  take_intra_process_message(
-    uint64_t intra_process_publisher_id,
-    uint64_t message_sequence_number,
-    uint64_t requesting_subscriptions_intra_process_id,
-    size_t & size
-  )
-  {
-    std::lock_guard<std::mutex> lock(runtime_mutex_);
-    PublisherInfo * info;
-    {
-      auto it = publishers_.find(intra_process_publisher_id);
-      if (it == publishers_.end()) {
-        // Publisher is either invalid or no longer exists.
-        return 0;
-      }
-      info = &it->second;
-    }
-    // Figure out how many subscriptions are left.
-    AllocSet * target_subs;
-    {
-      auto it = info->target_subscriptions_by_message_sequence.find(message_sequence_number);
-      if (it == info->target_subscriptions_by_message_sequence.end()) {
-        // Message is no longer being stored by this publisher.
-        return 0;
-      }
-      target_subs = &it->second;
-    }
-    {
-      auto it = std::find(
-        target_subs->begin(), target_subs->end(),
-        requesting_subscriptions_intra_process_id);
-      if (it == target_subs->end()) {
-        // This publisher id/message seq pair was not intended for this subscription.
-        return 0;
-      }
-      target_subs->erase(it);
-    }
-    size = target_subs->size();
-    return info->buffer;
   }
 
   bool
@@ -345,26 +260,15 @@ private:
     }
   };
 
-  template<typename T>
-  using RebindAlloc = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+  struct SubscriptionInfo
+  {
+    RCLCPP_DISABLE_COPY(SubscriptionInfo)
 
-  RebindAlloc<uint64_t> uint64_allocator;
+    SubscriptionInfo() = default;
 
-  using AllocSet = std::set<uint64_t, std::less<uint64_t>, RebindAlloc<uint64_t>>;
-  using SubscriptionMap = std::unordered_map<
-    uint64_t, SubscriptionBase::WeakPtr,
-    std::hash<uint64_t>, std::equal_to<uint64_t>,
-    RebindAlloc<std::pair<const uint64_t, SubscriptionBase::WeakPtr>>>;
-
-  using IDTopicMap = std::map<
-    FixedSizeString,
-    AllocSet,
-    strcmp_wrapper,
-    RebindAlloc<std::pair<const FixedSizeString, AllocSet>>>;
-
-  SubscriptionMap subscriptions_;
-
-  IDTopicMap subscription_ids_by_topic_;
+    SubscriptionBase::WeakPtr subscription;
+    const char* topic_name;
+  };
 
   struct PublisherInfo
   {
@@ -373,21 +277,46 @@ private:
     PublisherInfo() = default;
 
     PublisherBase::WeakPtr publisher;
-    std::atomic<uint64_t> sequence_number;
-    mapped_ring_buffer::MappedRingBufferBase::SharedPtr buffer;
-
-    using TargetSubscriptionsMap = std::unordered_map<
-      uint64_t, AllocSet,
-      std::hash<uint64_t>, std::equal_to<uint64_t>,
-      RebindAlloc<std::pair<const uint64_t, AllocSet>>>;
-    TargetSubscriptionsMap target_subscriptions_by_message_sequence;
+    const char* topic_name;
   };
+
+  template<typename T>
+  using RebindAlloc = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+
+  using AllocSet = std::set<uint64_t, std::less<uint64_t>, RebindAlloc<uint64_t>>;
+
+  using SubscriptionMap = std::unordered_map<
+    uint64_t, SubscriptionInfo,
+    std::hash<uint64_t>, std::equal_to<uint64_t>,
+    RebindAlloc<std::pair<const uint64_t, SubscriptionInfo>>>;
+
+  using IDTopicMap = std::map<
+    FixedSizeString,
+    AllocSet,
+    strcmp_wrapper,
+    RebindAlloc<std::pair<const FixedSizeString, AllocSet>>>;
 
   using PublisherMap = std::unordered_map<
     uint64_t, PublisherInfo,
     std::hash<uint64_t>, std::equal_to<uint64_t>,
     RebindAlloc<std::pair<const uint64_t, PublisherInfo>>>;
 
+  /*
+  using TopicSubscriptionMap = std::unordered_map<
+    std::string,
+    SubscriptionMap,
+    std::hash<std::string>, std::equal_to<std::string>,
+    RebindAlloc<std::pair<const std::string, SubscriptionMap>>>;
+
+  using TopicPublisherMap = std::unordered_map<
+    std::string,
+    PublisherMap,
+    std::hash<std::string>, std::equal_to<std::string>,
+    RebindAlloc<std::pair<const std::string, PublisherMap>>>;
+  */
+
+  IDTopicMap subscription_ids_by_topic_;
+  SubscriptionMap subscriptions_;
   PublisherMap publishers_;
 
   std::mutex runtime_mutex_;
