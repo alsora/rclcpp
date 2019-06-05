@@ -74,12 +74,14 @@ public:
     uint64_t & message_seq) = 0;
 
   virtual void
-  optimized_ipc_publish(
+  optimized_ipc_publish_shared(
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const void> msg) = 0;
 
   virtual void
-  store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq) = 0;
+  optimized_ipc_publish_unique(
+    uint64_t intra_process_publisher_id,
+    void* msg) = 0;
 
   virtual mapped_ring_buffer::MappedRingBufferBase::SharedPtr
   take_intra_process_message(
@@ -170,10 +172,11 @@ public:
   }
 
   void
-  optimized_ipc_publish(
+  optimized_ipc_publish_shared(
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const void> msg)
   {
+    std::cout<<"optimized_ipc_publish_shared"<<std::endl;
 
     auto it = publishers_.find(intra_process_publisher_id);
     if (it == publishers_.end()) {
@@ -196,18 +199,21 @@ public:
         throw std::runtime_error("subscriber has unexpectedly gone out of scope");
       }
 
-      subscriber->add_shared_ptr_message_to_queue(msg);
-
+      subscriber->add_shared_message_to_queue(msg);
     }
   }
 
   void
-  store_intra_process_message(uint64_t intra_process_publisher_id, uint64_t message_seq)
+  optimized_ipc_publish_unique(
+    uint64_t intra_process_publisher_id,
+    void* msg)
   {
-    std::lock_guard<std::mutex> lock(runtime_mutex_);
+
+    std::cout<<"optimized_ipc_publish_unique"<<std::endl;
+
     auto it = publishers_.find(intra_process_publisher_id);
     if (it == publishers_.end()) {
-      throw std::runtime_error("store_intra_process_message called with invalid publisher id");
+      throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
     }
     PublisherInfo & info = it->second;
     auto publisher = info.publisher.lock();
@@ -218,22 +224,27 @@ public:
     // Figure out what subscriptions should receive the message.
     auto & destined_subscriptions =
       subscription_ids_by_topic_[fixed_size_string(publisher->get_topic_name())];
-    // Store the list for later comparison.
-    if (info.target_subscriptions_by_message_sequence.count(message_seq) == 0) {
-      info.target_subscriptions_by_message_sequence.emplace(
-        message_seq, AllocSet(std::less<uint64_t>(), uint64_allocator));
-    } else {
-      info.target_subscriptions_by_message_sequence[message_seq].clear();
+
+    // Here I should order subscriptions: first the ones that wants a shared_ptr
+    // then the ones that wants a unique_ptr
+
+
+    for (auto iter = destined_subscriptions.begin(); iter != destined_subscriptions.end(); ++iter){
+      auto id = *iter;
+      auto sub = subscriptions_[id];
+      auto subscriber = sub.lock();
+      if (!subscriber) {
+        throw std::runtime_error("subscriber has unexpectedly gone out of scope");
+      }
+      // if this is the last iteration, we give up ownership
+      if (std::next(iter) == destined_subscriptions.end()) {
+        subscriber->add_owned_message_to_queue(msg, false);
+      }
+      // otherwise we copy the message
+      else{
+        subscriber->add_owned_message_to_queue(msg, true);
+      }
     }
-    std::copy(
-      destined_subscriptions.begin(), destined_subscriptions.end(),
-      // Memory allocation occurs in info.target_subscriptions_by_message_sequence[message_seq]
-      std::inserter(
-        info.target_subscriptions_by_message_sequence[message_seq],
-        // This ends up only being a hint to std::set, could also be .begin().
-        info.target_subscriptions_by_message_sequence[message_seq].end()
-      )
-    );
   }
 
   mapped_ring_buffer::MappedRingBufferBase::SharedPtr

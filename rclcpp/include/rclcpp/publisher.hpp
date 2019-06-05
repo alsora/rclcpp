@@ -40,6 +40,8 @@
 
 #include "rclcpp/intra_process_setting.hpp"
 
+#include <iostream>
+
 namespace rclcpp
 {
 
@@ -109,9 +111,11 @@ public:
     // NOTE: BE CAREFUL!
     // This is a fast hack used to test IPC
 
+    std::cout<<"publish unique_ptr "<< msg.get()<<std::endl;
+
     #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
-    std::shared_ptr<MessageT> shared_msg = std::move(msg);
-    store_intra_process_message(intra_process_publisher_id_, shared_msg);
+    //std::shared_ptr<MessageT> shared_msg = std::move(msg);
+    store_intra_process_message(intra_process_publisher_id_, std::move(msg));
     return;
     #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
     this->do_inter_process_publish(msg.get());
@@ -120,6 +124,7 @@ public:
     std::shared_ptr<MessageT> shared_msg = std::move(msg);
     store_intra_process_message(intra_process_publisher_id_, shared_msg);
     this->do_inter_process_publish(shared_msg.get());
+    return;
     #endif
 
   }
@@ -141,6 +146,8 @@ public:
     // NOTE: BE CAREFUL!
     // This is a fast hack used to test IPC
 
+    std::cout<<"publish shared_ptr "<< msg.get()<<std::endl;
+
     #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
     store_intra_process_message(intra_process_publisher_id_, msg);
     #elif COMM_TYPE == COMM_TYPE_INTER_ONLY
@@ -154,6 +161,7 @@ public:
   virtual void
   publish(const MessageT & msg)
   {
+    (void)msg;
     std::cout<<"Error: publish(const MessageT & msg) not supported yet"<<std::endl;
     return;
 
@@ -181,6 +189,7 @@ public:
   virtual void
   publish(const MessageT * msg)
   {
+    (void)msg;
     std::cout<<"Error: publish(const MessageT * msg) not supported yet"<<std::endl;
     return;
     /*
@@ -288,6 +297,8 @@ protected:
     uint64_t publisher_id,
     std::shared_ptr<const MessageT> msg)
   {
+    std::cout<<"publisher::store_intra_process_message shared"<<std::endl;
+
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
@@ -306,6 +317,8 @@ protected:
     uint64_t publisher_id,
     std::unique_ptr<MessageT, MessageDeleter> msg)
   {
+    std::cout<<"publisher::store_intra_process_message unique"<<std::endl;
+
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
@@ -315,10 +328,8 @@ protected:
       throw std::runtime_error("cannot publisher msg which is a null pointer");
     }
 
-    std::shared_ptr<MessageT> shared_msg = std::move(msg);
-
     uint64_t message_seq =
-      ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, shared_msg);
+      ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, std::move(msg));
     return message_seq;
   }
 

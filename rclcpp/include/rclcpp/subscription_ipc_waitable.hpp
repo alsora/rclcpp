@@ -46,31 +46,45 @@ class NodeTopicsInterface;
 class NodeWaitablesInterface;
 }  // namespace node_interfaces
 
+/**
+ *
+ *
+ * \typename CallbackMessageT is a raw message type such as sensor_msgs::msg::Image
+ * \typename QueueT is the type that is stored in the queue. It can be any of
+ *  CallbackMessageT, std::shared_ptr<const CallbackMessageT> and std::unique_ptr<CallbackMessageT>
+ *
+ */
 template<
   typename CallbackMessageT,
+  typename QueueT = std::shared_ptr<const CallbackMessageT>,
   typename Alloc = std::allocator<void>>
 class IPCSubscriptionWaitable : public rclcpp::Waitable
 {
 public:
 
+  using MessageAllocTraits = allocator::AllocRebind<CallbackMessageT, Alloc>;
+  using MessageAlloc = typename MessageAllocTraits::allocator_type;
+  using MessageDeleter = allocator::Deleter<MessageAlloc, CallbackMessageT>;
   using ConstMessageSharedPtr = std::shared_ptr<const CallbackMessageT>;
+  using MessageUniquePtr = std::unique_ptr<CallbackMessageT, MessageDeleter>;
 
   std::recursive_mutex reentrant_mutex_;
 
   rcl_guard_condition_t gc_;
 
-  using QueueType = ConsumerProducerQueue<ConstMessageSharedPtr>;
-
-  std::shared_ptr<QueueType> queue_;
+  std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_;
   AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
 
-  ConstMessageSharedPtr shared_msg;
+  //QueueT queue_msg;
 
-  IPCSubscriptionWaitable(){}
+  IPCSubscriptionWaitable(): rclcpp::Waitable()
+  {
+    std::cout<<"constructing"<<std::endl;
+  }
 
   void init(
     AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
-    std::shared_ptr<QueueType> queue_ptr
+    std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_ptr
   )
   {
 
@@ -108,21 +122,33 @@ add_to_wait_set(rcl_wait_set_t * wait_set)
 bool
 is_ready(rcl_wait_set_t * wait_set) {
   (void)wait_set;
-
-  return queue_->length() > 0;
+  return queue_->hasData();
 }
 
-void
-execute()
+void execute()
 {
-  queue_->consume(shared_msg);
+  dispatch<QueueT>();
+}
 
-  if (any_callback_->use_take_shared_method()) {
-    any_callback_->dispatch_intra_process(shared_msg, rmw_message_info_t());
-  } else {
-    auto unique_msg = std::make_unique<CallbackMessageT>(*shared_msg);
-    any_callback_->dispatch_intra_process(std::move(unique_msg), rmw_message_info_t());
-  }
+template <typename DestinationT>
+typename std::enable_if<
+(std::is_same<DestinationT, MessageUniquePtr>::value)>::type
+dispatch()
+{
+  QueueT queue_msg;
+  queue_->move_out(queue_msg);
+  std::cout<<"IPCwaitable dispatching: "<< queue_msg.get()<<std::endl;
+  any_callback_->dispatch_intra_process(std::move(queue_msg), rmw_message_info_t());
+}
+
+template <typename DestinationT>
+typename std::enable_if<
+(!std::is_same<DestinationT, MessageUniquePtr>::value)>::type
+dispatch()
+{
+  QueueT queue_msg;
+  queue_->consume(queue_msg);
+  any_callback_->dispatch_intra_process(queue_msg, rmw_message_info_t());
 }
 
 };
