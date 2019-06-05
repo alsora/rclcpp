@@ -111,8 +111,6 @@ public:
     // NOTE: BE CAREFUL!
     // This is a fast hack used to test IPC
 
-    std::cout<<"publish unique_ptr "<< msg.get()<<std::endl;
-
     #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
     //std::shared_ptr<MessageT> shared_msg = std::move(msg);
     store_intra_process_message(intra_process_publisher_id_, std::move(msg));
@@ -145,8 +143,6 @@ public:
 
     // NOTE: BE CAREFUL!
     // This is a fast hack used to test IPC
-
-    std::cout<<"publish shared_ptr "<< msg.get()<<std::endl;
 
     #if COMM_TYPE == COMM_TYPE_INTRA_ONLY
     store_intra_process_message(intra_process_publisher_id_, msg);
@@ -297,8 +293,6 @@ protected:
     uint64_t publisher_id,
     std::shared_ptr<const MessageT> msg)
   {
-    std::cout<<"publisher::store_intra_process_message shared"<<std::endl;
-
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
@@ -317,8 +311,6 @@ protected:
     uint64_t publisher_id,
     std::unique_ptr<MessageT, MessageDeleter> msg)
   {
-    std::cout<<"publisher::store_intra_process_message unique"<<std::endl;
-
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(

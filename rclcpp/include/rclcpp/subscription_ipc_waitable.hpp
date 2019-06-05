@@ -77,10 +77,7 @@ public:
 
   //QueueT queue_msg;
 
-  IPCSubscriptionWaitable(): rclcpp::Waitable()
-  {
-    std::cout<<"constructing"<<std::endl;
-  }
+  IPCSubscriptionWaitable(): rclcpp::Waitable(){}
 
   void init(
     AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
@@ -137,10 +134,10 @@ dispatch()
 {
   QueueT queue_msg;
   queue_->move_out(queue_msg);
-  std::cout<<"IPCwaitable dispatching: "<< queue_msg.get()<<std::endl;
   any_callback_->dispatch_intra_process(std::move(queue_msg), rmw_message_info_t());
 }
 
+// This implementation works for both shared_ptr<MessageT> and MessageT
 template <typename DestinationT>
 typename std::enable_if<
 (!std::is_same<DestinationT, MessageUniquePtr>::value)>::type
