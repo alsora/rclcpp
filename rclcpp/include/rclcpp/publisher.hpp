@@ -86,15 +86,6 @@ public:
   virtual ~Publisher()
   {}
 
-  mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  make_mapped_ring_buffer(size_t size) const override
-  {
-    return mapped_ring_buffer::MappedRingBuffer<
-      MessageT,
-      typename Publisher<MessageT, Alloc>::MessageAlloc
-    >::make_shared(size, this->get_allocator());
-  }
-
   /// Send a message to the topic for this publisher.
   /**
    * This function is templated on the input message type, MessageT.
@@ -288,7 +279,7 @@ protected:
     */
   }
 
-  uint64_t
+  void
   store_intra_process_message(
     uint64_t publisher_id,
     std::shared_ptr<const MessageT> msg)
@@ -301,12 +292,11 @@ protected:
     if (!msg) {
       throw std::runtime_error("cannot publisher msg which is a null pointer");
     }
-    uint64_t message_seq =
-      ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, msg);
-    return message_seq;
+
+    ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, msg);
   }
 
-  uint64_t
+  void
   store_intra_process_message(
     uint64_t publisher_id,
     std::unique_ptr<MessageT, MessageDeleter> msg)
@@ -320,9 +310,7 @@ protected:
       throw std::runtime_error("cannot publisher msg which is a null pointer");
     }
 
-    uint64_t message_seq =
-      ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, std::move(msg));
-    return message_seq;
+    ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, std::move(msg));
   }
 
   std::shared_ptr<MessageAlloc> message_allocator_;

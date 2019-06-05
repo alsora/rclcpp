@@ -185,59 +185,6 @@ public:
     message_memory_strategy_->return_serialized_message(message);
   }
 
-  void handle_intra_process_message(
-    rcl_interfaces::msg::IntraProcessMessage & ipm,
-    const rmw_message_info_t & message_info)
-  {
-    if (!use_intra_process_) {
-      // throw std::runtime_error(
-      //   "handle_intra_process_message called before setup_intra_process");
-      // TODO(wjwwood): for now, this could mean that intra process was just not enabled.
-      // However, this can only really happen if this node has it disabled, but the other doesn't.
-      return;
-    }
-
-    if (!matches_any_intra_process_publishers(&message_info.publisher_gid)) {
-      // This intra-process message has not been created by a publisher from this context.
-      // we should ignore this copy of the message.
-      return;
-    }
-
-    if (any_callback_.use_take_shared_method()) {
-      ConstMessageSharedPtr msg;
-      take_intra_process_message(
-        ipm.publisher_id,
-        ipm.message_sequence,
-        intra_process_subscription_id_,
-        msg);
-      if (!msg) {
-        // This can happen when having two nodes in different process both using intraprocess
-        // communication. It could happen too if the publisher no longer exists or the requested
-        // message is not longer being stored.
-        // TODO(ivanpauno): Print a warn message in the last two cases described above,
-        // but not in the first one.
-        return;
-      }
-      any_callback_.dispatch_intra_process(msg, message_info);
-    } else {
-      MessageUniquePtr msg;
-      take_intra_process_message(
-        ipm.publisher_id,
-        ipm.message_sequence,
-        intra_process_subscription_id_,
-        msg);
-      if (!msg) {
-        // This can happen when having two nodes in different process both using intraprocess
-        // communication. It could happen too if the publisher no longer exists or the requested
-        // message is not longer being stored.
-        // TODO(ivanpauno): Print a warn message in the last two cases described above,
-        // but not in the first one.
-        return;
-      }
-      any_callback_.dispatch_intra_process(std::move(msg), message_info);
-    }
-  }
-
   /// Implemenation detail.
   const std::shared_ptr<rcl_subscription_t>
   get_intra_process_subscription_handle() const
@@ -267,7 +214,7 @@ public:
    * if the subscription wants ownership on it it's necessary to make a copy
    */
 
-  void add_shared_message_to_queue(std::shared_ptr<const void> shared_msg)
+  void add_message_to_queue(std::shared_ptr<const void> shared_msg, bool share)
   {
     add_shared_to_queue_impl<QueueT>(shared_msg);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
@@ -280,9 +227,9 @@ public:
    * if the subscription wants ownership on it it's necessary to make a copy
    */
 
-  void add_owned_message_to_queue(void* msg, bool copy)
+  void add_message_to_queue(void* msg, bool share)
   {
-    add_owned_to_queue_impl<QueueT>(msg, copy);
+    add_owned_to_queue_impl<QueueT>(msg, share);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
     (void)ret;
   }
@@ -397,38 +344,6 @@ private:
 
   std::shared_ptr<MessageAlloc> message_allocator_;
   MessageDeleter message_deleter_;
-
-  void
-  take_intra_process_message(
-    uint64_t publisher_id,
-    uint64_t message_sequence,
-    uint64_t subscription_id,
-    MessageUniquePtr & message)
-  {
-    auto ipm = weak_ipm_.lock();
-    if (!ipm) {
-      throw std::runtime_error(
-              "intra process take called after destruction of intra process manager");
-    }
-    ipm->template take_intra_process_message<CallbackMessageT, Alloc>(
-      publisher_id, message_sequence, subscription_id, message);
-  }
-
-  void
-  take_intra_process_message(
-    uint64_t publisher_id,
-    uint64_t message_sequence,
-    uint64_t subscription_id,
-    ConstMessageSharedPtr & message)
-  {
-    auto ipm = weak_ipm_.lock();
-    if (!ipm) {
-      throw std::runtime_error(
-              "intra process take called after destruction of intra process manager");
-    }
-    ipm->template take_intra_process_message<CallbackMessageT, Alloc>(
-      publisher_id, message_sequence, subscription_id, message);
-  }
 
   bool
   matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)

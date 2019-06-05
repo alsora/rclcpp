@@ -142,11 +142,6 @@ public:
   virtual void
   return_serialized_message(std::shared_ptr<rcl_serialized_message_t> & message) = 0;
 
-  virtual void
-  handle_intra_process_message(
-    rcl_interfaces::msg::IntraProcessMessage & ipm,
-    const rmw_message_info_t & message_info) = 0;
-
   const rosidl_message_type_support_t &
   get_message_type_support_handle() const;
 
@@ -169,9 +164,8 @@ public:
     const rcl_subscription_options_t & intra_process_options);
 
   /// Some IPC functions that are called from the IPC Manager
-  virtual void add_shared_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
-
-  virtual void add_owned_message_to_queue(void* message_ptr, bool copy = true) = 0;
+  virtual void add_message_to_queue(std::shared_ptr<const void> message_ptr, bool share = true) = 0;
+  virtual void add_message_to_queue(void* message_ptr, bool share = false) = 0;
 
 protected:
   template<typename EventCallbackT>
