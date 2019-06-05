@@ -182,13 +182,9 @@ public:
     ConstMessageSharedPtr message, const rmw_message_info_t & message_info)
   {
     if (const_shared_ptr_callback_) {
-      std::cout<<"dispatch_intra_process const_shared_ptr_callback_ start"<<std::endl;
       const_shared_ptr_callback_(message);
-      std::cout<<"dispatch_intra_process const_shared_ptr_callback_ done"<<std::endl;
     } else if (const_shared_ptr_with_info_callback_) {
-      std::cout<<"dispatch_intra_process const_shared_ptr_with_info_callback_ start"<<std::endl;
       const_shared_ptr_with_info_callback_(message, message_info);
-      std::cout<<"dispatch_intra_process const_shared_ptr_with_info_callback_ done"<<std::endl;
     } else {
       if (unique_ptr_callback_ || unique_ptr_with_info_callback_ ||
         shared_ptr_callback_ || shared_ptr_with_info_callback_)
@@ -205,28 +201,44 @@ public:
     MessageUniquePtr message, const rmw_message_info_t & message_info)
   {
     if (shared_ptr_callback_) {
-      std::cout<<"dispatch_intra_process shared_ptr_callback_ get"<<std::endl;
       typename std::shared_ptr<MessageT> shared_message = std::move(message);
-      std::cout<<"dispatch_intra_process shared_ptr_callback_ start"<<std::endl;
       shared_ptr_callback_(shared_message);
-      std::cout<<"dispatch_intra_process shared_ptr_callback_ done"<<std::endl;
     } else if (shared_ptr_with_info_callback_) {
-      std::cout<<"dispatch_intra_process shared_ptr_with_info_callback_ get"<<std::endl;
       typename std::shared_ptr<MessageT> shared_message = std::move(message);
-      std::cout<<"dispatch_intra_process shared_ptr_with_info_callback_ start"<<std::endl;
       shared_ptr_with_info_callback_(shared_message, message_info);
-      std::cout<<"dispatch_intra_process shared_ptr_with_info_callback_ done"<<std::endl;
     } else if (unique_ptr_callback_) {
-      std::cout<<"dispatch_intra_process unique_ptr_callback_ start"<<std::endl;
       unique_ptr_callback_(std::move(message));
-      std::cout<<"dispatch_intra_process unique_ptr_callback_ done"<<std::endl;
     } else if (unique_ptr_with_info_callback_) {
-      std::cout<<"dispatch_intra_process unique_ptr_with_info_callback_ start"<<std::endl;
       unique_ptr_with_info_callback_(std::move(message), message_info);
-      std::cout<<"dispatch_intra_process unique_ptr_with_info_callback_ done"<<std::endl;
     } else if (const_shared_ptr_callback_ || const_shared_ptr_with_info_callback_) {
       throw std::runtime_error("unexpected dispatch_intra_process unique message call"
               " with const shared_ptr callback");
+    } else {
+      throw std::runtime_error("unexpected message without any callback set");
+    }
+  }
+
+  void dispatch_intra_process(
+    MessageT message, const rmw_message_info_t & message_info)
+  {
+    if (const_shared_ptr_callback_) {
+      ConstMessageSharedPtr shared_message = std::make_shared<const MessageT>(message);
+      const_shared_ptr_callback_(shared_message);
+    } else if (const_shared_ptr_with_info_callback_) {
+      ConstMessageSharedPtr shared_message = std::make_shared<const MessageT>(message);
+      const_shared_ptr_with_info_callback_(shared_message, message_info);
+    } else if (shared_ptr_callback_) {
+      typename std::shared_ptr<MessageT> shared_message = std::make_shared<MessageT>(message);
+      shared_ptr_callback_(shared_message);
+    } else if (shared_ptr_with_info_callback_) {
+      typename std::shared_ptr<MessageT> shared_message = std::make_shared<MessageT>(message);
+      shared_ptr_with_info_callback_(shared_message, message_info);
+    } else if (unique_ptr_callback_) {
+      MessageUniquePtr unique_msg = std::make_unique<MessageT>(message);
+      unique_ptr_callback_(std::move(unique_msg));
+    } else if (unique_ptr_with_info_callback_) {
+      MessageUniquePtr unique_msg = std::make_unique<MessageT>(message);
+      unique_ptr_with_info_callback_(std::move(unique_msg), message_info);
     } else {
       throw std::runtime_error("unexpected message without any callback set");
     }

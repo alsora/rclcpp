@@ -243,9 +243,7 @@ public:
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const MessageT> message)
   {
-    std::cout<<"intraprocessmanager:: store_intra_process_message shared"<<std::endl;
     impl_->optimized_ipc_publish_shared(intra_process_publisher_id, message);
-
     return 0;
   }
 
@@ -257,8 +255,6 @@ public:
     uint64_t intra_process_publisher_id,
     std::unique_ptr<MessageT, Deleter> message)
   {
-    std::cout<<"intraprocessmanager:: store_intra_process_message unique"<<std::endl;
-    //impl_->optimized_ipc_publish_unique(intra_process_publisher_id, std::move(message));
     impl_->optimized_ipc_publish_unique(intra_process_publisher_id, message.release());
     return 0;
   }

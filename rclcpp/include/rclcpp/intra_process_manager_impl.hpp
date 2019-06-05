@@ -176,8 +176,6 @@ public:
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const void> msg)
   {
-    std::cout<<"optimized_ipc_publish_shared"<<std::endl;
-
     auto it = publishers_.find(intra_process_publisher_id);
     if (it == publishers_.end()) {
       throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
@@ -208,9 +206,6 @@ public:
     uint64_t intra_process_publisher_id,
     void* msg)
   {
-
-    std::cout<<"optimized_ipc_publish_unique"<<std::endl;
-
     auto it = publishers_.find(intra_process_publisher_id);
     if (it == publishers_.end()) {
       throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
