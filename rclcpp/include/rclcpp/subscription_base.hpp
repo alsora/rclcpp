@@ -169,7 +169,9 @@ public:
     const rcl_subscription_options_t & intra_process_options);
 
   /// Some IPC functions that are called from the IPC Manager
-  virtual void add_shared_ptr_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
+  virtual void add_shared_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
+
+  virtual void add_owned_message_to_queue(void* message_ptr, bool copy = true) = 0;
 
 protected:
   template<typename EventCallbackT>

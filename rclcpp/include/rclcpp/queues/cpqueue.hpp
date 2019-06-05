@@ -22,6 +22,7 @@ public:
     : maxSize(mxsz), is_shared_ptr_queue(is_shared)
     { }
 
+
     void add(T request)
     {
         std::unique_lock<std::mutex> lock(mutex);
@@ -44,6 +45,28 @@ public:
 
     }
 
+    void move_in(T request)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cond.wait(lock, [this]()
+            { return !isFull(); });
+        cpq.push(std::move(request));
+        lock.unlock();
+        cond.notify_all();
+    }
+
+    void move_out(T &request)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cond.wait(lock, [this]()
+            { return !isEmpty(); });
+        request = std::move(cpq.front());
+        cpq.pop();
+        lock.unlock();
+        cond.notify_all();
+
+    }
+
     bool isFull() const
     {
         return cpq.size() >= maxSize;
@@ -52,6 +75,11 @@ public:
     bool isEmpty() const
     {
         return cpq.size() == 0;
+    }
+
+    bool hasData() const
+    {
+        return cpq.size();
     }
 
     int length() const
