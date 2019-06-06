@@ -15,24 +15,6 @@
 #ifndef RCLCPP__INTRA_PROCESS_SETTING_HPP_
 #define RCLCPP__INTRA_PROCESS_SETTING_HPP_
 
-
-/**
- * Preprocessor directives for selecting IPC implementation
- */
-
-
-// this is needed for DPS middleware that does not allow to count subscriptions
-#define COMM_TYPE_INTRA_ONLY 1
-#define COMM_TYPE_INTER_ONLY 2
-#define COMM_TYPE_INTRA_INTER 3
-
-/**
- * SELECT THE TYPE OF COMMUNICATION USED BY YOUR APP
- */
-
-#define COMM_TYPE COMM_TYPE_INTRA_ONLY
-
-
 namespace rclcpp
 {
 
