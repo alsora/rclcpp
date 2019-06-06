@@ -125,14 +125,6 @@ public:
       this->add_event_handler(event_callbacks.liveliness_callback,
         RCL_SUBSCRIPTION_LIVELINESS_CHANGED);
     }
-
-    // this is just a quick hack, I should build them here
-    message_allocator_ = any_callback_.get_message_allocator();
-    message_deleter_ = any_callback_.get_message_deleter();
-
-    // construct the queue
-    bool need_shared_ptr = any_callback_.use_take_shared_method();
-    typed_queue = std::make_shared<ConsumerProducerQueue<QueueT>>(100, need_shared_ptr);
   }
 
   /// Support dynamically setting the message memory strategy.
@@ -195,16 +187,23 @@ public:
     return intra_process_subscription_handle_;
   }
 
-  std::shared_ptr<rclcpp::Waitable>
-  create_intra_process_waitable()
+  void create_intra_process_tools()
   {
+    // this is just a quick hack, I should build them here
+    message_allocator_ = any_callback_.get_message_allocator();
+    message_deleter_ = any_callback_.get_message_deleter();
 
-    waitable_ptr = nullptr;
+    // construct the queue
+    bool need_shared_ptr = any_callback_.use_take_shared_method();
+    typed_queue = std::make_shared<ConsumerProducerQueue<QueueT>>(100, need_shared_ptr);
 
-    // The queue is already created in the constructor
     waitable_ptr = std::make_shared<IPCSubscriptionWaitable<CallbackMessageT,QueueT, Alloc>>();
-
     waitable_ptr->init(&any_callback_, typed_queue);
+  }
+
+  std::shared_ptr<rclcpp::Waitable>
+  get_intra_process_waitable()
+  {
     return waitable_ptr;
   }
 

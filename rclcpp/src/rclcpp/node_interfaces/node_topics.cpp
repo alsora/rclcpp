@@ -107,8 +107,9 @@ NodeTopics::create_subscription(
   auto subscription = subscription_factory.create_typed_subscription(
     node_base_, topic_name, subscription_options);
 
-  // Setup intra process publishing if requested.
+  // Setup intra process communication if requested.
   if (use_intra_process) {
+    subscription->create_intra_process_tools();
     auto context = node_base_->get_context();
     auto ipm =
       context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();

@@ -163,6 +163,13 @@ public:
     IntraProcessManagerWeakPtr weak_ipm,
     const rcl_subscription_options_t & intra_process_options);
 
+  virtual void
+  create_intra_process_tools() = 0;
+
+  virtual std::shared_ptr<rclcpp::Waitable>
+  get_intra_process_waitable() = 0;
+
+
   /// Some IPC functions that are called from the IPC Manager
   virtual void add_message_to_queue(std::shared_ptr<const void> message_ptr, bool share = true) = 0;
   virtual void add_message_to_queue(void* message_ptr, bool share = false) = 0;
