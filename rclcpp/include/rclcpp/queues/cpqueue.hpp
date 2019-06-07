@@ -13,13 +13,9 @@ class ConsumerProducerQueue
     size_t maxSize;
     std::queue<T> cpq;
 
-    // if true, this queue is storing shared_ptr<MessageT>
-    // if false, this queue is storing unique_ptr<MessageT>
-    bool is_shared_ptr_queue;
-
 public:
-    ConsumerProducerQueue(size_t mxsz, bool is_shared)
-    : maxSize(mxsz), is_shared_ptr_queue(is_shared)
+    ConsumerProducerQueue(size_t mxsz)
+    : maxSize(mxsz)
     { }
 
 
@@ -42,7 +38,6 @@ public:
         cpq.pop();
         lock.unlock();
         cond.notify_all();
-
     }
 
     void move_in(T request)
@@ -64,7 +59,6 @@ public:
         cpq.pop();
         lock.unlock();
         cond.notify_all();
-
     }
 
     bool isFull() const
@@ -85,11 +79,6 @@ public:
     int length() const
     {
         return cpq.size();
-    }
-
-    bool is_shared_ptr() const
-    {
-        return is_shared_ptr_queue;
     }
 
     void clear()

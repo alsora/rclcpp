@@ -53,14 +53,18 @@ public:
   virtual ~IntraProcessManagerImplBase() = default;
 
   virtual void
-  add_subscription(uint64_t id, SubscriptionBase::SharedPtr subscription) = 0;
+  add_subscription(
+    uint64_t id,
+    SubscriptionBase::SharedPtr subscription,
+    rcl_subscription_options_t options) = 0;
 
   virtual void
   remove_subscription(uint64_t intra_process_subscription_id) = 0;
 
   virtual void add_publisher(
     uint64_t id,
-    PublisherBase::SharedPtr publisher) = 0;
+    PublisherBase::SharedPtr publisher,
+    rcl_publisher_options_t options) = 0;
 
   virtual void
   remove_publisher(uint64_t intra_process_publisher_id) = 0;
@@ -81,6 +85,9 @@ public:
   virtual size_t
   get_subscription_count(uint64_t intra_process_publisher_id) const = 0;
 
+  virtual const std::vector<uint64_t>
+  get_subscription_ids_for_pub(uint64_t intra_process_publisher_id) const = 0;
+
 private:
   RCLCPP_DISABLE_COPY(IntraProcessManagerImplBase)
 };
@@ -88,44 +95,188 @@ private:
 template<typename Allocator = std::allocator<void>>
 class IntraProcessManagerImpl : public IntraProcessManagerImplBase
 {
+
+private:
+  RCLCPP_DISABLE_COPY(IntraProcessManagerImpl)
+
+  template<typename T>
+  using RebindAlloc = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+
+  struct SubscriptionInfo
+  {
+    SubscriptionInfo() = default;
+
+    SubscriptionBase::WeakPtr subscription;
+    rcl_subscription_options_t options;
+    const char* topic_name;
+    bool use_take_shared_method;
+  };
+
+  struct PublisherInfo
+  {
+    PublisherInfo() = default;
+
+    PublisherBase::WeakPtr publisher;
+    rcl_publisher_options_t options;
+    const char* topic_name;
+  };
+
+  using SubscriptionMap = std::unordered_map<
+    uint64_t, SubscriptionInfo,
+    std::hash<uint64_t>, std::equal_to<uint64_t>,
+    RebindAlloc<std::pair<const uint64_t, SubscriptionInfo>>>;
+
+  using PublisherMap = std::unordered_map<
+    uint64_t, PublisherInfo,
+    std::hash<uint64_t>, std::equal_to<uint64_t>,
+    RebindAlloc<std::pair<const uint64_t, PublisherInfo>>>;
+
+  struct PublisherToSubscriptionsMap
+  {
+    void insert_sub_id_for_pub(uint64_t sub_id, uint64_t pub_id, bool priority)
+    {
+      //first check if the element is not already there
+      if (std::find(map_[pub_id].begin(), map_[pub_id].end(), sub_id) != map_[pub_id].end()){
+        return;
+      }
+      auto it = map_[pub_id].end();
+      if (priority){
+        it = map_[pub_id].begin();
+      }
+      map_[pub_id].insert(it, sub_id);
+    }
+
+    void remove_sub(uint64_t sub_id)
+    {
+      for (auto & pair : map_) {
+        auto it = std::find(pair.second.begin(), pair.second.end(), sub_id);
+        if (it != pair.second.end()){
+          pair.second.erase(it);
+        }
+      }
+    }
+
+    void remove_pub(uint64_t pub_id)
+    {
+      map_.erase(pub_id);
+    }
+
+    const std::vector<uint64_t> get_sub_ids_for_pub(uint64_t pub_id) const
+    {
+      auto subs_it = map_.find(pub_id);
+      if (subs_it != map_.end()){
+        return subs_it->second;
+      }
+      else{
+        return std::vector<uint64_t>();
+      }
+    }
+
+    size_t count_subs_for_pub(uint64_t pub_id) const
+    {
+      auto subs_it = map_.find(pub_id);
+      if (subs_it != map_.end()){
+        return subs_it->second.size();
+      }
+      else{
+        return 0;
+      }
+    }
+
+  private:
+    std::unordered_map<
+      uint64_t, std::vector<uint64_t>,
+      std::hash<uint64_t>, std::equal_to<uint64_t>,
+      RebindAlloc<std::pair<const uint64_t, std::vector<uint64_t>>>
+      > map_;
+  };
+
+
+  PublisherToSubscriptionsMap pub_to_subs_;
+  SubscriptionMap subscriptions_;
+  PublisherMap publishers_;
+
 public:
   IntraProcessManagerImpl() = default;
   ~IntraProcessManagerImpl() = default;
 
+  bool can_communicate(PublisherInfo pub_info, SubscriptionInfo sub_info)
+  {
+    // publisher and subscription must be on the same topic
+    if (strcmp(pub_info.topic_name, sub_info.topic_name) != 0){
+      return false;
+    }
+
+    // a reliable subscription can't be connected with a best effort publisher
+    if (sub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE &&
+      pub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT){
+      return false;
+    }
+
+    // a transient local subscription can't be connected with a volatile publisher
+    if (sub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL &&
+      pub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_VOLATILE){
+      return false;
+    }
+
+    return true;
+  }
+
+  void get_subscription(uint64_t id)
+  {
+    return subscriptions_[id];
+  }
+
+
+
   void
-  add_subscription(uint64_t id, SubscriptionBase::SharedPtr subscription)
+  add_subscription(
+    uint64_t id,
+    SubscriptionBase::SharedPtr subscription,
+    rcl_subscription_options_t options)
   {
     subscriptions_[id].subscription = subscription;
     subscriptions_[id].topic_name = subscription->get_topic_name();
+    subscriptions_[id].use_take_shared_method = subscription->use_take_shared_method();
+    subscriptions_[id].options = options;
 
-    subscription_ids_by_topic_[fixed_size_string(subscription->get_topic_name())].insert(id);
+    // adds the subscription id to all the matchable publishers
+    for (auto pair : publishers_){
+      if (can_communicate(pair.second, subscriptions_[id])){
+        pub_to_subs_.insert_sub_id_for_pub(id, pair.first, subscriptions_[id].use_take_shared_method);
+      }
+    }
   }
 
   void
   remove_subscription(uint64_t intra_process_subscription_id)
   {
     subscriptions_.erase(intra_process_subscription_id);
-    for (auto & pair : subscription_ids_by_topic_) {
-      pair.second.erase(intra_process_subscription_id);
-    }
+    pub_to_subs_.remove_sub(intra_process_subscription_id);
   }
 
   void add_publisher(
     uint64_t id,
-    PublisherBase::SharedPtr publisher)
+    PublisherBase::SharedPtr publisher,
+    rcl_publisher_options_t options)
   {
-    PublisherInfo pub_info;
-    pub_info.publisher = publisher;
-    pub_info.topic_name = publisher->get_topic_name();
-
     publishers_[id].publisher = publisher;
     publishers_[id].topic_name = publisher->get_topic_name();
+    publishers_[id].options = options;
+
+    // create an entry for the publisher id and populate with already existing subscriptions
+    for (auto pair : subscriptions_){
+      if (can_communicate(publishers_[id], pair.second)){
+        pub_to_subs_.insert_sub_id_for_pub(pair.first, id, pair.second.use_take_shared_method);
+      }
+    }
   }
 
   void
   remove_publisher(uint64_t intra_process_publisher_id)
   {
     publishers_.erase(intra_process_publisher_id);
+    pub_to_subs_.remove_pub(intra_process_publisher_id);
   }
 
   void
@@ -137,8 +288,9 @@ public:
     if (it == publishers_.end()) {
       throw std::runtime_error("optimized_ipc_publish_shared called with invalid publisher id");
     }
-    PublisherInfo & info = it->second;
+
     /*
+    PublisherInfo & info = it->second;
     auto publisher = info.publisher.lock();
     if (!publisher) {
       throw std::runtime_error("publisher has unexpectedly gone out of scope");
@@ -146,17 +298,18 @@ public:
     */
 
     // Figure out what subscriptions should receive the message.
+    // They are already ordered: first the ones requiring ownership then the others.
     auto & destined_subscriptions =
-      subscription_ids_by_topic_[fixed_size_string(info.topic_name)];
+      pub_to_subs_.get_sub_ids_for_pub(intra_process_publisher_id);
 
-    for (auto id : destined_subscriptions){
+    for (uint64_t id : destined_subscriptions){
       SubscriptionInfo & info = subscriptions_[id];
       auto subscriber = info.subscription.lock();
       if (!subscriber) {
         throw std::runtime_error("subscriber has unexpectedly gone out of scope");
       }
 
-      subscriber->add_message_to_queue(msg);
+      subscriber->add_shared_message_to_queue(msg);
     }
   }
 
@@ -169,8 +322,9 @@ public:
     if (it == publishers_.end()) {
       throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
     }
-    PublisherInfo & info = it->second;
+
     /*
+    PublisherInfo & info = it->second;
     auto publisher = info.publisher.lock();
     if (!publisher) {
       throw std::runtime_error("publisher has unexpectedly gone out of scope");
@@ -178,8 +332,9 @@ public:
     */
 
     // Figure out what subscriptions should receive the message.
+    // They are already ordered: first the ones requiring ownership then the others.
     auto & destined_subscriptions =
-      subscription_ids_by_topic_[fixed_size_string(info.topic_name)];
+      pub_to_subs_.get_sub_ids_for_pub(intra_process_publisher_id);
 
     for (auto iter = destined_subscriptions.begin(); iter != destined_subscriptions.end(); ++iter){
       auto id = *iter;
@@ -188,14 +343,14 @@ public:
       if (!subscriber) {
         throw std::runtime_error("subscriber has unexpectedly gone out of scope");
       }
+
+      bool can_be_taken = false;
       // if this is the last iteration, we give up ownership
       if (std::next(iter) == destined_subscriptions.end()) {
-        subscriber->add_message_to_queue(msg, false);
+        can_be_taken = true;
       }
-      // otherwise we copy the message
-      else{
-        subscriber->add_message_to_queue(msg, true);
-      }
+
+      subscriber->add_owned_message_to_queue(msg, can_be_taken);
     }
   }
 
@@ -222,104 +377,28 @@ public:
       // Publisher is either invalid or no longer exists.
       return 0;
     }
+    /*
     auto publisher = publisher_it->second.publisher.lock();
     if (!publisher) {
       throw std::runtime_error("publisher has unexpectedly gone out of scope");
     }
-    auto sub_map_it =
-      subscription_ids_by_topic_.find(fixed_size_string(publisher->get_topic_name()));
-    if (sub_map_it == subscription_ids_by_topic_.end()) {
-      // No intraprocess subscribers
-      return 0;
-    }
-    return sub_map_it->second.size();
+    */
+    auto sub_count = pub_to_subs_.count_subs_for_pub(intra_process_publisher_id);
+
+    return sub_count;
   }
 
-private:
-  RCLCPP_DISABLE_COPY(IntraProcessManagerImpl)
-
-  using FixedSizeString = std::array<char, RMW_TOPIC_MAX_NAME_LENGTH + 1>;
-
-  FixedSizeString
-  fixed_size_string(const char * str) const
+  const std::vector<uint64_t>
+  get_subscription_ids_for_pub(uint64_t intra_process_publisher_id) const
   {
-    FixedSizeString ret;
-    size_t size = std::strlen(str) + 1;
-    if (size > ret.size()) {
-      throw std::runtime_error("failed to copy topic name");
+    auto publisher_it = publishers_.find(intra_process_publisher_id);
+    if (publisher_it == publishers_.end()) {
+      // Publisher is either invalid or no longer exists.
+      return std::vector<uint64_t>();
     }
-    std::memcpy(ret.data(), str, size);
-    return ret;
+
+    return pub_to_subs_.get_sub_ids_for_pub(intra_process_publisher_id);
   }
-  struct strcmp_wrapper
-  {
-    bool
-    operator()(const FixedSizeString lhs, const FixedSizeString rhs) const
-    {
-      return std::strcmp(lhs.data(), rhs.data()) < 0;
-    }
-  };
-
-  struct SubscriptionInfo
-  {
-    RCLCPP_DISABLE_COPY(SubscriptionInfo)
-
-    SubscriptionInfo() = default;
-
-    SubscriptionBase::WeakPtr subscription;
-    const char* topic_name;
-  };
-
-  struct PublisherInfo
-  {
-    RCLCPP_DISABLE_COPY(PublisherInfo)
-
-    PublisherInfo() = default;
-
-    PublisherBase::WeakPtr publisher;
-    const char* topic_name;
-  };
-
-  template<typename T>
-  using RebindAlloc = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
-
-  using AllocSet = std::set<uint64_t, std::less<uint64_t>, RebindAlloc<uint64_t>>;
-
-  using SubscriptionMap = std::unordered_map<
-    uint64_t, SubscriptionInfo,
-    std::hash<uint64_t>, std::equal_to<uint64_t>,
-    RebindAlloc<std::pair<const uint64_t, SubscriptionInfo>>>;
-
-  using IDTopicMap = std::map<
-    FixedSizeString,
-    AllocSet,
-    strcmp_wrapper,
-    RebindAlloc<std::pair<const FixedSizeString, AllocSet>>>;
-
-  using PublisherMap = std::unordered_map<
-    uint64_t, PublisherInfo,
-    std::hash<uint64_t>, std::equal_to<uint64_t>,
-    RebindAlloc<std::pair<const uint64_t, PublisherInfo>>>;
-
-  /*
-  using TopicSubscriptionMap = std::unordered_map<
-    std::string,
-    SubscriptionMap,
-    std::hash<std::string>, std::equal_to<std::string>,
-    RebindAlloc<std::pair<const std::string, SubscriptionMap>>>;
-
-  using TopicPublisherMap = std::unordered_map<
-    std::string,
-    PublisherMap,
-    std::hash<std::string>, std::equal_to<std::string>,
-    RebindAlloc<std::pair<const std::string, PublisherMap>>>;
-  */
-
-  IDTopicMap subscription_ids_by_topic_;
-  SubscriptionMap subscriptions_;
-  PublisherMap publishers_;
-
-  std::mutex runtime_mutex_;
 };
 
 RCLCPP_PUBLIC

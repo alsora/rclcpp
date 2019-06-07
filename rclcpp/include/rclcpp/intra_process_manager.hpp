@@ -153,7 +153,8 @@ public:
    */
   RCLCPP_PUBLIC
   uint64_t
-  add_subscription(SubscriptionBase::SharedPtr subscription);
+  add_subscription(SubscriptionBase::SharedPtr subscription,
+    rcl_subscription_options_t options);
 
   /// Unregister a subscription using the subscription's unique id.
   /**
@@ -192,7 +193,7 @@ public:
   uint64_t
   add_publisher(
     rclcpp::PublisherBase::SharedPtr publisher,
-    size_t buffer_size = 0);
+    const rcl_publisher_options_t & options);
 
   /// Unregister a publisher using the publisher's unique id.
   /**
@@ -272,7 +273,6 @@ private:
   get_next_unique_id();
 
   IntraProcessManagerImplBase::SharedPtr impl_;
-  std::mutex take_mutex_;
 };
 
 }  // namespace intra_process_manager

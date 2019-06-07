@@ -1,6 +1,6 @@
 
-#ifndef RCLCPP__SUBSCRIPTION_IPC_WAITABLE_HPP_
-#define RCLCPP__SUBSCRIPTION_IPC_WAITABLE_HPP_
+#ifndef RCLCPP__SUBSCRIPTION_INTRA_PROCESS_WAITABLE_HPP_
+#define RCLCPP__SUBSCRIPTION_INTRA_PROCESS_WAITABLE_HPP_
 
 #include <rmw/error_handling.h>
 #include <rmw/rmw.h>
@@ -58,7 +58,7 @@ template<
   typename CallbackMessageT,
   typename QueueT = std::shared_ptr<const CallbackMessageT>,
   typename Alloc = std::allocator<void>>
-class IPCSubscriptionWaitable : public rclcpp::Waitable
+class IntraProcessSubscriptionWaitable : public rclcpp::Waitable
 {
 public:
 
@@ -77,7 +77,7 @@ public:
 
   //QueueT queue_msg;
 
-  IPCSubscriptionWaitable(): rclcpp::Waitable(){}
+  IntraProcessSubscriptionWaitable(): rclcpp::Waitable(){}
 
   void init(
     AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
@@ -151,4 +151,4 @@ dispatch()
 };
 }
 
-#endif
+#endif  // RCLCPP__SUBSCRIPTION_INTRA_PROCESS_WAITABLE_HPP_
