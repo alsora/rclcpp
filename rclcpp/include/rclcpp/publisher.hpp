@@ -112,10 +112,10 @@ public:
 
     if (inter_process_publish_needed) {
       std::shared_ptr<MessageT> shared_msg = std::move(msg);
-      store_intra_process_message(intra_process_publisher_id_, shared_msg);
+      this->do_intra_process_publish(intra_process_publisher_id_, shared_msg);
       this->do_inter_process_publish(shared_msg.get());
     } else {
-      store_intra_process_message(intra_process_publisher_id_, std::move(msg));
+      this->do_intra_process_publish(intra_process_publisher_id_, std::move(msg));
     }
   }
 
@@ -230,33 +230,7 @@ protected:
   }
 
   void
-  do_intra_process_publish(uint64_t message_seq)
-  {
-    assert(0 && "Error. Trying to use do_intra_process_publish");
-
-    /*
-    rcl_interfaces::msg::IntraProcessMessage ipm;
-    ipm.publisher_id = intra_process_publisher_id_;
-    ipm.message_sequence = message_seq;
-    auto status = rcl_publish(&intra_process_publisher_handle_, &ipm, nullptr);
-    if (RCL_RET_PUBLISHER_INVALID == status) {
-      rcl_reset_error();  // next call will reset error message if not context
-      if (rcl_publisher_is_valid_except_context(&intra_process_publisher_handle_)) {
-        rcl_context_t * context = rcl_publisher_get_context(&intra_process_publisher_handle_);
-        if (nullptr != context && !rcl_context_is_valid(context)) {
-          // publisher is invalid due to context being shutdown
-          return;
-        }
-      }
-    }
-    if (RCL_RET_OK != status) {
-      rclcpp::exceptions::throw_from_rcl_error(status, "failed to publish intra process message");
-    }
-    */
-  }
-
-  void
-  store_intra_process_message(
+  do_intra_process_publish(
     uint64_t publisher_id,
     std::shared_ptr<const MessageT> msg)
   {
@@ -266,14 +240,14 @@ protected:
               "intra process publish called after destruction of intra process manager");
     }
     if (!msg) {
-      throw std::runtime_error("cannot publisher msg which is a null pointer");
+      throw std::runtime_error("cannot publish msg which is a null pointer");
     }
 
-    ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, msg);
+    ipm->template do_intra_process_publish<MessageT>(publisher_id, msg);
   }
 
   void
-  store_intra_process_message(
+  do_intra_process_publish(
     uint64_t publisher_id,
     std::unique_ptr<MessageT, MessageDeleter> msg)
   {
@@ -283,10 +257,10 @@ protected:
               "intra process publish called after destruction of intra process manager");
     }
     if (!msg) {
-      throw std::runtime_error("cannot publisher msg which is a null pointer");
+      throw std::runtime_error("cannot publish msg which is a null pointer");
     }
 
-    ipm->template store_intra_process_message<MessageT, Alloc>(publisher_id, std::move(msg));
+    ipm->template do_intra_process_publish<MessageT>(publisher_id, std::move(msg));
   }
 
   std::shared_ptr<MessageAlloc> message_allocator_;

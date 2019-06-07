@@ -174,8 +174,8 @@ public:
 
 
   /// Some IPC functions that are called from the IPC Manager
-  virtual void add_shared_message_to_queue(std::shared_ptr<const void> message_ptr) = 0;
-  virtual void add_owned_message_to_queue(void* message_ptr, bool can_be_taken = false) = 0;
+  virtual void add_shared_message_to_buffer(std::shared_ptr<const void> message_ptr) = 0;
+  virtual void add_owned_message_to_buffer(void* message_ptr, bool can_be_taken = false) = 0;
 
 protected:
   template<typename EventCallbackT>

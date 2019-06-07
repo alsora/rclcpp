@@ -236,25 +236,141 @@ public:
    * \param message the message that is being stored.
    * \return the message sequence number.
    */
-  template<
-    typename MessageT, typename Alloc = std::allocator<void>>
+  template<typename MessageT>
   void
-  store_intra_process_message(
+  do_intra_process_publish(
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const MessageT> message)
   {
-    impl_->optimized_ipc_publish_shared(intra_process_publisher_id, message);
+    std::set<uint64_t> take_shared_subscription_ids;
+    std::set<uint64_t> take_owned_subscription_ids;
+
+    impl_->get_subscription_ids_for_pub(
+      take_shared_subscription_ids,
+      take_owned_subscription_ids,
+      intra_process_publisher_id);
+
+    // in this case we make no difference on the type of subscription
+    take_shared_subscription_ids.insert(
+      take_owned_subscription_ids.begin(), take_owned_subscription_ids.end());
+
+    this->template add_shared_msg_to_buffers<MessageT>(message, take_shared_subscription_ids);
+
+      /*
+      for (auto id : take_shared_subscription_ids){
+        auto weak_subscription = impl_->get_subscription(id);
+        auto subscription = weak_subscription.lock();
+        if (!subscription) {
+          throw std::runtime_error("subscription has unexpectedly gone out of scope");
+        }
+        subscription->add_shared_message_to_buffer(msg);
+      }
+      */
   }
 
   template<
-    typename MessageT, typename Alloc = std::allocator<void>,
+    typename MessageT,
     typename Deleter = std::default_delete<MessageT>>
   void
-  store_intra_process_message(
+  do_intra_process_publish(
     uint64_t intra_process_publisher_id,
     std::unique_ptr<MessageT, Deleter> message)
   {
-    impl_->optimized_ipc_publish_unique(intra_process_publisher_id, message.release());
+    std::set<uint64_t> take_shared_subscription_ids;
+    std::set<uint64_t> take_owned_subscription_ids;
+
+    impl_->get_subscription_ids_for_pub(
+      take_shared_subscription_ids,
+      take_owned_subscription_ids,
+      intra_process_publisher_id);
+
+
+    if (take_owned_subscription_ids.size() == 0){
+
+      std::shared_ptr<MessageT> msg = std::move(message);
+
+      this->template add_shared_msg_to_buffers<MessageT>(msg, take_shared_subscription_ids);
+      /*
+      for (auto shared_id : take_shared_subscription_ids){
+        auto weak_subscription = impl_->get_subscription(shared_id);
+        auto subscription = weak_subscription.lock();
+        if (!subscription) {
+          throw std::runtime_error("subscription has unexpectedly gone out of scope");
+        }
+        subscription->add_shared_message_to_buffer(msg);
+      }
+       */
+
+    }
+    else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() <= 1){
+
+      void* msg = message.release();
+
+      this->add_owned_msg_to_buffers(msg, take_shared_subscription_ids, false);
+      this->add_owned_msg_to_buffers(msg, take_owned_subscription_ids, true);
+
+      /*
+      bool can_be_taken = false;
+      for (auto shared_id : take_shared_subscription_ids){
+        auto weak_subscription = impl_->get_subscription(shared_id);
+        auto subscription = weak_subscription.lock();
+        if (!subscription) {
+          throw std::runtime_error("subscription has unexpectedly gone out of scope");
+        }
+        subscription->add_owned_message_to_buffer(msg, can_be_taken);
+      }
+
+      for (auto owned_it = take_owned_subscription_ids.begin(); owned_it != take_owned_subscription_ids.end(); owned_it++){
+        auto weak_subscription = impl_->get_subscription(*owned_it);
+        auto subscription = weak_subscription.lock();
+        if (!subscription) {
+          throw std::runtime_error("subscription has unexpectedly gone out of scope");
+        }
+
+        if (std::next(owned_it) == take_owned_subscription_ids.end()) {
+          can_be_taken = true;
+        }
+        subscription->add_owned_message_to_buffer(msg, can_be_taken);
+      }
+     */
+    }
+    else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 0){
+
+      std::shared_ptr<MessageT> shared_msg = std::make_shared<MessageT>(*message);
+
+      this->template add_shared_msg_to_buffers<MessageT>(shared_msg, take_shared_subscription_ids);
+
+      /*
+      for (auto shared_id : take_shared_subscription_ids){
+        auto weak_subscription = impl_->get_subscription(shared_id);
+        auto subscription = weak_subscription.lock();
+        if (!subscription) {
+          throw std::runtime_error("subscription has unexpectedly gone out of scope");
+        }
+        subscription->add_shared_message_to_buffer(shared_msg);
+      }
+      */
+
+      void* msg = message.release();
+      this->add_owned_msg_to_buffers(msg, take_owned_subscription_ids, true);
+
+      /*
+      bool can_be_taken = false;
+
+      for (auto owned_it = take_owned_subscription_ids.begin(); owned_it != take_owned_subscription_ids.end(); owned_it++){
+        auto weak_subscription = impl_->get_subscription(*owned_it);
+        auto subscription = weak_subscription.lock();
+        if (!subscription) {
+          throw std::runtime_error("subscription has unexpectedly gone out of scope");
+        }
+
+        if (std::next(owned_it) == take_owned_subscription_ids.end()) {
+          can_be_taken = true;
+        }
+        subscription->add_owned_message_to_buffer(msg, can_be_taken);
+      }
+      */
+    }
   }
 
   /// Return true if the given rmw_gid_t matches any stored Publishers.
@@ -271,6 +387,46 @@ private:
   RCLCPP_PUBLIC
   static uint64_t
   get_next_unique_id();
+
+  template<typename MessageT>
+  void
+  add_shared_msg_to_buffers(
+    std::shared_ptr<const MessageT> message,
+    std::set<uint64_t> subscription_ids)
+  {
+    for (auto id : subscription_ids){
+      auto weak_subscription = impl_->get_subscription(id);
+      auto subscription = weak_subscription.lock();
+      if (!subscription) {
+        throw std::runtime_error("subscription has unexpectedly gone out of scope");
+      }
+      subscription->add_shared_message_to_buffer(message);
+    }
+  }
+
+  void
+  add_owned_msg_to_buffers(
+    void* message,
+    std::set<uint64_t> subscription_ids,
+    bool giveup_ownership_to_last = true)
+  {
+    for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++){
+      auto weak_subscription = impl_->get_subscription(*it);
+      auto subscription = weak_subscription.lock();
+      if (!subscription) {
+        throw std::runtime_error("subscription has unexpectedly gone out of scope");
+      }
+
+      if (giveup_ownership_to_last && std::next(it) == subscription_ids.end()) {
+        bool can_be_taken = true;
+        subscription->add_owned_message_to_buffer(message, can_be_taken);
+      }
+      else{
+        bool can_be_taken = false;
+        subscription->add_owned_message_to_buffer(message, can_be_taken);
+      }
+    }
+  }
 
   IntraProcessManagerImplBase::SharedPtr impl_;
 };
