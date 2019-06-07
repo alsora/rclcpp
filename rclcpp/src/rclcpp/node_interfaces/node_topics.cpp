@@ -53,11 +53,7 @@ NodeTopics::create_publisher(
       throw std::invalid_argument(
               "intraprocess communication is not allowed with keep all history qos policy");
     }
-    if (publisher_options.qos.depth == 0) {
-      throw std::invalid_argument(
-              "intraprocess communication is not allowed with a zero qos history depth value");
-    }
-    uint64_t intra_process_publisher_id = ipm->add_publisher(publisher);
+    uint64_t intra_process_publisher_id = ipm->add_publisher(publisher, publisher_options);
     publisher->setup_intra_process(
       intra_process_publisher_id,
       ipm,
@@ -113,10 +109,8 @@ NodeTopics::create_subscription(
     auto context = node_base_->get_context();
     auto ipm =
       context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
-    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription);
-    auto options_copy = subscription_options;
-    options_copy.ignore_local_publications = false;
-    subscription->setup_intra_process(intra_process_subscription_id, ipm, options_copy);
+    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription, subscription_options);
+    subscription->setup_intra_process(intra_process_subscription_id, ipm, subscription_options);
   }
 
   // Return the completed subscription.

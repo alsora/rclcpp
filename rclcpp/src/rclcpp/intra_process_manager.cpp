@@ -32,19 +32,20 @@ IntraProcessManager::~IntraProcessManager()
 uint64_t
 IntraProcessManager::add_publisher(
   rclcpp::PublisherBase::SharedPtr publisher,
-  size_t buffer_size)
+  const rcl_publisher_options_t & options)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_publisher(id, publisher);
+  impl_->add_publisher(id, publisher, options);
   return id;
 }
 
 uint64_t
 IntraProcessManager::add_subscription(
-  rclcpp::SubscriptionBase::SharedPtr subscription)
+  rclcpp::SubscriptionBase::SharedPtr subscription,
+  rcl_subscription_options_t options)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_subscription(id, subscription);
+  impl_->add_subscription(id, subscription, options);
   return id;
 }
 
