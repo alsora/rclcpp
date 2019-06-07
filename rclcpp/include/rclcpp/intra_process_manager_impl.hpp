@@ -69,24 +69,20 @@ public:
   virtual void
   remove_publisher(uint64_t intra_process_publisher_id) = 0;
 
-  virtual void
-  optimized_ipc_publish_shared(
-    uint64_t intra_process_publisher_id,
-    std::shared_ptr<const void> msg) = 0;
-
-  virtual void
-  optimized_ipc_publish_unique(
-    uint64_t intra_process_publisher_id,
-    void* msg) = 0;
-
   virtual bool
   matches_any_publishers(const rmw_gid_t * id) const = 0;
 
   virtual size_t
   get_subscription_count(uint64_t intra_process_publisher_id) const = 0;
 
-  virtual const std::vector<uint64_t>
-  get_subscription_ids_for_pub(uint64_t intra_process_publisher_id) const = 0;
+  virtual void
+  get_subscription_ids_for_pub(
+    std::set<uint64_t>& take_shared_ids,
+    std::set<uint64_t>& take_owned_ids,
+    uint64_t intra_process_publisher_id) const = 0;
+
+  virtual SubscriptionBase::WeakPtr
+  get_subscription(uint64_t intra_process_subscription_id) = 0;
 
 private:
   RCLCPP_DISABLE_COPY(IntraProcessManagerImplBase)
@@ -98,9 +94,6 @@ class IntraProcessManagerImpl : public IntraProcessManagerImplBase
 
 private:
   RCLCPP_DISABLE_COPY(IntraProcessManagerImpl)
-
-  template<typename T>
-  using RebindAlloc = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
 
   struct SubscriptionInfo
   {
@@ -121,6 +114,15 @@ private:
     const char* topic_name;
   };
 
+  struct SplittedSubscriptions
+  {
+    std::set<uint64_t> take_shared_subscriptions;
+    std::set<uint64_t> take_ownership_subscriptions;
+  };
+
+  template<typename T>
+  using RebindAlloc = typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+
   using SubscriptionMap = std::unordered_map<
     uint64_t, SubscriptionInfo,
     std::hash<uint64_t>, std::equal_to<uint64_t>,
@@ -131,74 +133,24 @@ private:
     std::hash<uint64_t>, std::equal_to<uint64_t>,
     RebindAlloc<std::pair<const uint64_t, PublisherInfo>>>;
 
-  struct PublisherToSubscriptionsMap
-  {
-    void insert_sub_id_for_pub(uint64_t sub_id, uint64_t pub_id, bool priority)
-    {
-      //first check if the element is not already there
-      if (std::find(map_[pub_id].begin(), map_[pub_id].end(), sub_id) != map_[pub_id].end()){
-        return;
-      }
-      auto it = map_[pub_id].end();
-      if (priority){
-        it = map_[pub_id].begin();
-      }
-      map_[pub_id].insert(it, sub_id);
-    }
+  using PublisherToSubscriptionIdsMap = std::unordered_map<
+    uint64_t, SplittedSubscriptions,
+    std::hash<uint64_t>, std::equal_to<uint64_t>,
+    RebindAlloc<std::pair<const uint64_t, SplittedSubscriptions>>>;
 
-    void remove_sub(uint64_t sub_id)
-    {
-      for (auto & pair : map_) {
-        auto it = std::find(pair.second.begin(), pair.second.end(), sub_id);
-        if (it != pair.second.end()){
-          pair.second.erase(it);
-        }
-      }
-    }
-
-    void remove_pub(uint64_t pub_id)
-    {
-      map_.erase(pub_id);
-    }
-
-    const std::vector<uint64_t> get_sub_ids_for_pub(uint64_t pub_id) const
-    {
-      auto subs_it = map_.find(pub_id);
-      if (subs_it != map_.end()){
-        return subs_it->second;
-      }
-      else{
-        return std::vector<uint64_t>();
-      }
-    }
-
-    size_t count_subs_for_pub(uint64_t pub_id) const
-    {
-      auto subs_it = map_.find(pub_id);
-      if (subs_it != map_.end()){
-        return subs_it->second.size();
-      }
-      else{
-        return 0;
-      }
-    }
-
-  private:
-    std::unordered_map<
-      uint64_t, std::vector<uint64_t>,
-      std::hash<uint64_t>, std::equal_to<uint64_t>,
-      RebindAlloc<std::pair<const uint64_t, std::vector<uint64_t>>>
-      > map_;
-  };
-
-
-  PublisherToSubscriptionsMap pub_to_subs_;
+  PublisherToSubscriptionIdsMap pub_to_subs_;
   SubscriptionMap subscriptions_;
   PublisherMap publishers_;
 
-public:
-  IntraProcessManagerImpl() = default;
-  ~IntraProcessManagerImpl() = default;
+  void insert_sub_id_for_pub(uint64_t sub_id, uint64_t pub_id, bool use_take_shared_method)
+  {
+    if (use_take_shared_method){
+      pub_to_subs_[pub_id].take_shared_subscriptions.insert(sub_id);
+    }
+    else{
+      pub_to_subs_[pub_id].take_ownership_subscriptions.insert(sub_id);
+    }
+  }
 
   bool can_communicate(PublisherInfo pub_info, SubscriptionInfo sub_info)
   {
@@ -222,12 +174,9 @@ public:
     return true;
   }
 
-  void get_subscription(uint64_t id)
-  {
-    return subscriptions_[id];
-  }
-
-
+public:
+  IntraProcessManagerImpl() = default;
+  ~IntraProcessManagerImpl() = default;
 
   void
   add_subscription(
@@ -243,7 +192,7 @@ public:
     // adds the subscription id to all the matchable publishers
     for (auto pair : publishers_){
       if (can_communicate(pair.second, subscriptions_[id])){
-        pub_to_subs_.insert_sub_id_for_pub(id, pair.first, subscriptions_[id].use_take_shared_method);
+        insert_sub_id_for_pub(id, pair.first, subscriptions_[id].use_take_shared_method);
       }
     }
   }
@@ -252,7 +201,11 @@ public:
   remove_subscription(uint64_t intra_process_subscription_id)
   {
     subscriptions_.erase(intra_process_subscription_id);
-    pub_to_subs_.remove_sub(intra_process_subscription_id);
+
+    for (auto & pair : pub_to_subs_) {
+      pair.second.take_shared_subscriptions.erase(intra_process_subscription_id);
+      pair.second.take_ownership_subscriptions.erase(intra_process_subscription_id);
+    }
   }
 
   void add_publisher(
@@ -267,7 +220,7 @@ public:
     // create an entry for the publisher id and populate with already existing subscriptions
     for (auto pair : subscriptions_){
       if (can_communicate(publishers_[id], pair.second)){
-        pub_to_subs_.insert_sub_id_for_pub(pair.first, id, pair.second.use_take_shared_method);
+        insert_sub_id_for_pub(pair.first, id, pair.second.use_take_shared_method);
       }
     }
   }
@@ -276,82 +229,7 @@ public:
   remove_publisher(uint64_t intra_process_publisher_id)
   {
     publishers_.erase(intra_process_publisher_id);
-    pub_to_subs_.remove_pub(intra_process_publisher_id);
-  }
-
-  void
-  optimized_ipc_publish_shared(
-    uint64_t intra_process_publisher_id,
-    std::shared_ptr<const void> msg)
-  {
-    auto it = publishers_.find(intra_process_publisher_id);
-    if (it == publishers_.end()) {
-      throw std::runtime_error("optimized_ipc_publish_shared called with invalid publisher id");
-    }
-
-    /*
-    PublisherInfo & info = it->second;
-    auto publisher = info.publisher.lock();
-    if (!publisher) {
-      throw std::runtime_error("publisher has unexpectedly gone out of scope");
-    }
-    */
-
-    // Figure out what subscriptions should receive the message.
-    // They are already ordered: first the ones requiring ownership then the others.
-    auto & destined_subscriptions =
-      pub_to_subs_.get_sub_ids_for_pub(intra_process_publisher_id);
-
-    for (uint64_t id : destined_subscriptions){
-      SubscriptionInfo & info = subscriptions_[id];
-      auto subscriber = info.subscription.lock();
-      if (!subscriber) {
-        throw std::runtime_error("subscriber has unexpectedly gone out of scope");
-      }
-
-      subscriber->add_shared_message_to_queue(msg);
-    }
-  }
-
-  void
-  optimized_ipc_publish_unique(
-    uint64_t intra_process_publisher_id,
-    void* msg)
-  {
-    auto it = publishers_.find(intra_process_publisher_id);
-    if (it == publishers_.end()) {
-      throw std::runtime_error("pass_message_to_buffers called with invalid publisher id");
-    }
-
-    /*
-    PublisherInfo & info = it->second;
-    auto publisher = info.publisher.lock();
-    if (!publisher) {
-      throw std::runtime_error("publisher has unexpectedly gone out of scope");
-    }
-    */
-
-    // Figure out what subscriptions should receive the message.
-    // They are already ordered: first the ones requiring ownership then the others.
-    auto & destined_subscriptions =
-      pub_to_subs_.get_sub_ids_for_pub(intra_process_publisher_id);
-
-    for (auto iter = destined_subscriptions.begin(); iter != destined_subscriptions.end(); ++iter){
-      auto id = *iter;
-      SubscriptionInfo & info = subscriptions_[id];
-      auto subscriber = info.subscription.lock();
-      if (!subscriber) {
-        throw std::runtime_error("subscriber has unexpectedly gone out of scope");
-      }
-
-      bool can_be_taken = false;
-      // if this is the last iteration, we give up ownership
-      if (std::next(iter) == destined_subscriptions.end()) {
-        can_be_taken = true;
-      }
-
-      subscriber->add_owned_message_to_queue(msg, can_be_taken);
-    }
+    pub_to_subs_.erase(intra_process_publisher_id);
   }
 
   bool
@@ -372,33 +250,47 @@ public:
   size_t
   get_subscription_count(uint64_t intra_process_publisher_id) const
   {
-    auto publisher_it = publishers_.find(intra_process_publisher_id);
-    if (publisher_it == publishers_.end()) {
+    auto publisher_it = pub_to_subs_.find(intra_process_publisher_id);
+    if (publisher_it == pub_to_subs_.end()) {
       // Publisher is either invalid or no longer exists.
       return 0;
     }
-    /*
-    auto publisher = publisher_it->second.publisher.lock();
-    if (!publisher) {
-      throw std::runtime_error("publisher has unexpectedly gone out of scope");
-    }
-    */
-    auto sub_count = pub_to_subs_.count_subs_for_pub(intra_process_publisher_id);
 
-    return sub_count;
+    auto count =
+      publisher_it->second.take_shared_subscriptions.size() +
+      publisher_it->second.take_ownership_subscriptions.size();
+
+    return count;
   }
 
-  const std::vector<uint64_t>
-  get_subscription_ids_for_pub(uint64_t intra_process_publisher_id) const
+  void
+  get_subscription_ids_for_pub(
+    std::set<uint64_t>& take_shared_ids,
+    std::set<uint64_t>& take_owned_ids,
+    uint64_t intra_process_publisher_id) const
   {
-    auto publisher_it = publishers_.find(intra_process_publisher_id);
-    if (publisher_it == publishers_.end()) {
+    auto publisher_it = pub_to_subs_.find(intra_process_publisher_id);
+    if (publisher_it == pub_to_subs_.end()) {
       // Publisher is either invalid or no longer exists.
-      return std::vector<uint64_t>();
+      return;
     }
 
-    return pub_to_subs_.get_sub_ids_for_pub(intra_process_publisher_id);
+    take_shared_ids = publisher_it->second.take_shared_subscriptions;
+    take_owned_ids = publisher_it->second.take_ownership_subscriptions;
   }
+
+  SubscriptionBase::WeakPtr
+  get_subscription(uint64_t intra_process_subscription_id)
+  {
+    auto subscription_it = subscriptions_.find(intra_process_subscription_id);
+    if (subscription_it == subscriptions_.end()){
+      return std::shared_ptr<SubscriptionBase>(nullptr);
+    }
+    else{
+      return subscription_it->second.subscription;
+    }
+  }
+
 };
 
 RCLCPP_PUBLIC
