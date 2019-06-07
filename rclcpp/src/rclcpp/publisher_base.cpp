@@ -86,14 +86,6 @@ PublisherBase::~PublisherBase()
   // must fini the events before fini-ing the publisher
   event_handlers_.clear();
 
-  if (rcl_publisher_fini(&intra_process_publisher_handle_, rcl_node_handle_.get()) != RCL_RET_OK) {
-    RCUTILS_LOG_ERROR_NAMED(
-      "rclcpp",
-      "Error in destruction of intra process rcl publisher handle: %s",
-      rcl_get_error_string().str);
-    rcl_reset_error();
-  }
-
   if (rcl_publisher_fini(&publisher_handle_, rcl_node_handle_.get()) != RCL_RET_OK) {
     RCUTILS_LOG_ERROR_NAMED(
       "rclcpp",

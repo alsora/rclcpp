@@ -177,16 +177,6 @@ public:
     message_memory_strategy_->return_serialized_message(message);
   }
 
-  /// Implemenation detail.
-  const std::shared_ptr<rcl_subscription_t>
-  get_intra_process_subscription_handle() const
-  {
-    if (!use_intra_process_) {
-      return nullptr;
-    }
-    return intra_process_subscription_handle_;
-  }
-
   void create_intra_process_tools()
   {
     // this is just a quick hack, I should build them here

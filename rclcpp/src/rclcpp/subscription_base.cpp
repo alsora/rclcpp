@@ -59,10 +59,6 @@ SubscriptionBase::SubscriptionBase(
     new rcl_subscription_t, custom_deletor);
   *subscription_handle_.get() = rcl_get_zero_initialized_subscription();
 
-  intra_process_subscription_handle_ = std::shared_ptr<rcl_subscription_t>(
-    new rcl_subscription_t, custom_deletor);
-  *intra_process_subscription_handle_.get() = rcl_get_zero_initialized_subscription();
-
   rcl_ret_t ret = rcl_subscription_init(
     subscription_handle_.get(),
     node_handle_.get(),
@@ -116,12 +112,6 @@ const std::shared_ptr<rcl_subscription_t>
 SubscriptionBase::get_subscription_handle() const
 {
   return subscription_handle_;
-}
-
-const std::shared_ptr<rcl_subscription_t>
-SubscriptionBase::get_intra_process_subscription_handle() const
-{
-  return intra_process_subscription_handle_;
 }
 
 const std::vector<std::shared_ptr<rclcpp::QOSEventHandlerBase>> &
