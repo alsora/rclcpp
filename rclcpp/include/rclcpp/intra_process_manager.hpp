@@ -254,18 +254,7 @@ public:
     take_shared_subscription_ids.insert(
       take_owned_subscription_ids.begin(), take_owned_subscription_ids.end());
 
-    this->template add_shared_msg_to_buffers<MessageT>(message, take_shared_subscription_ids);
-
-      /*
-      for (auto id : take_shared_subscription_ids){
-        auto weak_subscription = impl_->get_subscription(id);
-        auto subscription = weak_subscription.lock();
-        if (!subscription) {
-          throw std::runtime_error("subscription has unexpectedly gone out of scope");
-        }
-        subscription->add_shared_message_to_buffer(msg);
-      }
-      */
+    this->add_shared_msg_to_buffers(message, take_shared_subscription_ids);
   }
 
   template<
@@ -287,20 +276,9 @@ public:
 
     if (take_owned_subscription_ids.size() == 0){
 
-      std::shared_ptr<MessageT> msg = std::move(message);
+      std::shared_ptr<void> msg = std::move(message);
 
-      this->template add_shared_msg_to_buffers<MessageT>(msg, take_shared_subscription_ids);
-      /*
-      for (auto shared_id : take_shared_subscription_ids){
-        auto weak_subscription = impl_->get_subscription(shared_id);
-        auto subscription = weak_subscription.lock();
-        if (!subscription) {
-          throw std::runtime_error("subscription has unexpectedly gone out of scope");
-        }
-        subscription->add_shared_message_to_buffer(msg);
-      }
-       */
-
+      this->add_shared_msg_to_buffers(msg, take_shared_subscription_ids);
     }
     else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() <= 1){
 
@@ -308,68 +286,15 @@ public:
 
       this->add_owned_msg_to_buffers(msg, take_shared_subscription_ids, false);
       this->add_owned_msg_to_buffers(msg, take_owned_subscription_ids, true);
-
-      /*
-      bool can_be_taken = false;
-      for (auto shared_id : take_shared_subscription_ids){
-        auto weak_subscription = impl_->get_subscription(shared_id);
-        auto subscription = weak_subscription.lock();
-        if (!subscription) {
-          throw std::runtime_error("subscription has unexpectedly gone out of scope");
-        }
-        subscription->add_owned_message_to_buffer(msg, can_be_taken);
-      }
-
-      for (auto owned_it = take_owned_subscription_ids.begin(); owned_it != take_owned_subscription_ids.end(); owned_it++){
-        auto weak_subscription = impl_->get_subscription(*owned_it);
-        auto subscription = weak_subscription.lock();
-        if (!subscription) {
-          throw std::runtime_error("subscription has unexpectedly gone out of scope");
-        }
-
-        if (std::next(owned_it) == take_owned_subscription_ids.end()) {
-          can_be_taken = true;
-        }
-        subscription->add_owned_message_to_buffer(msg, can_be_taken);
-      }
-     */
     }
     else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 0){
 
-      std::shared_ptr<MessageT> shared_msg = std::make_shared<MessageT>(*message);
+      std::shared_ptr<void> shared_msg = std::make_shared<MessageT>(*message);
 
-      this->template add_shared_msg_to_buffers<MessageT>(shared_msg, take_shared_subscription_ids);
-
-      /*
-      for (auto shared_id : take_shared_subscription_ids){
-        auto weak_subscription = impl_->get_subscription(shared_id);
-        auto subscription = weak_subscription.lock();
-        if (!subscription) {
-          throw std::runtime_error("subscription has unexpectedly gone out of scope");
-        }
-        subscription->add_shared_message_to_buffer(shared_msg);
-      }
-      */
+      this->add_shared_msg_to_buffers(shared_msg, take_shared_subscription_ids);
 
       void* msg = message.release();
       this->add_owned_msg_to_buffers(msg, take_owned_subscription_ids, true);
-
-      /*
-      bool can_be_taken = false;
-
-      for (auto owned_it = take_owned_subscription_ids.begin(); owned_it != take_owned_subscription_ids.end(); owned_it++){
-        auto weak_subscription = impl_->get_subscription(*owned_it);
-        auto subscription = weak_subscription.lock();
-        if (!subscription) {
-          throw std::runtime_error("subscription has unexpectedly gone out of scope");
-        }
-
-        if (std::next(owned_it) == take_owned_subscription_ids.end()) {
-          can_be_taken = true;
-        }
-        subscription->add_owned_message_to_buffer(msg, can_be_taken);
-      }
-      */
     }
   }
 
@@ -388,10 +313,9 @@ private:
   static uint64_t
   get_next_unique_id();
 
-  template<typename MessageT>
   void
   add_shared_msg_to_buffers(
-    std::shared_ptr<const MessageT> message,
+    std::shared_ptr<const void> message,
     std::set<uint64_t> subscription_ids)
   {
     for (auto id : subscription_ids){
