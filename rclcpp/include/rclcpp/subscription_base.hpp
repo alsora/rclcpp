@@ -90,10 +90,6 @@ public:
   const std::shared_ptr<rcl_subscription_t>
   get_subscription_handle() const;
 
-  RCLCPP_PUBLIC
-  virtual const std::shared_ptr<rcl_subscription_t>
-  get_intra_process_subscription_handle() const;
-
   /// Get all the QoS event handlers associated with this subscription.
   /** \return The vector of QoS event handlers. */
   RCLCPP_PUBLIC
@@ -194,7 +190,6 @@ protected:
 
   std::shared_ptr<rcl_node_t> node_handle_;
   std::shared_ptr<rcl_subscription_t> subscription_handle_;
-  std::shared_ptr<rcl_subscription_t> intra_process_subscription_handle_;
 
   std::vector<std::shared_ptr<rclcpp::QOSEventHandlerBase>> event_handlers_;
 

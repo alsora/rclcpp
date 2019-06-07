@@ -207,7 +207,6 @@ protected:
   std::shared_ptr<rcl_node_t> rcl_node_handle_;
 
   rcl_publisher_t publisher_handle_ = rcl_get_zero_initialized_publisher();
-  rcl_publisher_t intra_process_publisher_handle_ = rcl_get_zero_initialized_publisher();
 
   std::vector<std::shared_ptr<rclcpp::QOSEventHandlerBase>> event_handlers_;
 
