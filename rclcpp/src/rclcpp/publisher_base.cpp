@@ -36,8 +36,6 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp/node.hpp"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 using rclcpp::PublisherBase;
 
 PublisherBase::PublisherBase(

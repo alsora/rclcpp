@@ -27,8 +27,6 @@
 #include "rmw/error_handling.h"
 #include "rmw/rmw.h"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 using rclcpp::SubscriptionBase;
 
 SubscriptionBase::SubscriptionBase(

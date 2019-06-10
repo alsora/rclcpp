@@ -45,8 +45,6 @@
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 #ifndef RCLCPP__NODE_HPP_
 #include "node.hpp"
 #endif

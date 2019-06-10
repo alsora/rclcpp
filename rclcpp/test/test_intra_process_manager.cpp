@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -29,14 +27,15 @@
 #include <rcl/publisher.h>
 
 
-// forward declaration
-namespace rclcpp::intra_process_manager {
-    class IntraProcessManager;
-}
-
 // Mock up publisher and subscription base to avoid needing an rmw impl.
 namespace rclcpp
 {
+
+// forward declaration
+namespace intra_process_manager {
+    class IntraProcessManager;
+}
+
 namespace mock
 {
 
@@ -73,12 +72,14 @@ public:
   bool
   operator==(const rmw_gid_t & gid) const
   {
+    (void)gid;
     return false;
   }
 
   bool
   operator==(const rmw_gid_t * gid) const
   {
+    (void)gid;
     return false;
   }
 
@@ -113,7 +114,7 @@ public:
       throw std::runtime_error("cannot publish msg which is a null pointer");
     }
 
-    ipm->template do_intra_process_publish<T>(
+    ipm->template do_intra_process_publish<T, MessageDeleter>(
       intra_process_publisher_id_,
       std::move(msg));
   }
@@ -254,8 +255,8 @@ TEST(TestIntraProcessManager, add_pub_sub) {
   size_t p2_subs = ipm->get_subscription_count(p2_id);
   size_t non_existing_pub_subs = ipm->get_subscription_count(42);
   ASSERT_EQ(1u, p1_subs);
-  ASSERT_EQ(0, p2_subs);
-  ASSERT_EQ(0, non_existing_pub_subs);
+  ASSERT_EQ(0u, p2_subs);
+  ASSERT_EQ(0u, non_existing_pub_subs);
 
   rcl_publisher_options_t p3_options;
   p3_options.qos.reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
@@ -272,7 +273,7 @@ TEST(TestIntraProcessManager, add_pub_sub) {
   p2_subs = ipm->get_subscription_count(p2_id);
   size_t p3_subs = ipm->get_subscription_count(p3_id);
   ASSERT_EQ(1u, p1_subs);
-  ASSERT_EQ(0, p2_subs);
+  ASSERT_EQ(0u, p2_subs);
   ASSERT_EQ(2u, p3_subs);
 
   ipm->remove_subscription(s2_id);
@@ -280,7 +281,7 @@ TEST(TestIntraProcessManager, add_pub_sub) {
   p2_subs = ipm->get_subscription_count(p2_id);
   p3_subs = ipm->get_subscription_count(p3_id);
   ASSERT_EQ(1u, p1_subs);
-  ASSERT_EQ(0, p2_subs);
+  ASSERT_EQ(0u, p2_subs);
   ASSERT_EQ(1u, p3_subs);
 }
 
@@ -330,7 +331,7 @@ TEST(TestIntraProcessManager, single_subscription) {
   p1->publish(std::move(unique_msg));
   received_message_pointer = s2->mock_message_ptr;
   ASSERT_EQ(original_message_pointer, received_message_pointer);
-  ASSERT_EQ(0, s1->mock_message_ptr);
+  ASSERT_EQ(0u, s1->mock_message_ptr);
 
   auto shared_msg = std::make_shared<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(shared_msg.get());
@@ -380,7 +381,7 @@ TEST(TestIntraProcessManager, multiple_subscriptions_same_type) {
   bool received_original_2 = s2->mock_message_ptr == original_message_pointer;
   std::vector<bool> received_original_vec =
     {received_original_1, received_original_2};
-  ASSERT_THAT(received_original_vec, UnorderedElementsAre(0,1));
+  ASSERT_THAT(received_original_vec, UnorderedElementsAre(true, false));
 
   ipm->remove_subscription(s1_id);
   ipm->remove_subscription(s2_id);
@@ -523,7 +524,7 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   bool received_original_5 = received_message_pointer_5 == original_message_pointer;
   std::vector<bool> received_original_vec =
     {received_original_3, received_original_4, received_original_5};
-  ASSERT_THAT(received_original_vec, UnorderedElementsAre(0,0,1));
+  ASSERT_THAT(received_original_vec, UnorderedElementsAre(true, false, false));
   ASSERT_NE(received_message_pointer_3, received_message_pointer_4);
   ASSERT_NE(received_message_pointer_5, received_message_pointer_3);
   ASSERT_NE(received_message_pointer_5, received_message_pointer_4);
@@ -565,7 +566,7 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   ASSERT_EQ(received_message_pointer_6, received_message_pointer_7);
   ASSERT_NE(original_message_pointer, received_message_pointer_6);
   ASSERT_NE(original_message_pointer, received_message_pointer_7);
-  ASSERT_THAT(received_original_vec, UnorderedElementsAre(0,1));
+  ASSERT_THAT(received_original_vec, UnorderedElementsAre(true, false));
   ASSERT_NE(received_message_pointer_8, received_message_pointer_6);
   ASSERT_NE(received_message_pointer_9, received_message_pointer_6);
 

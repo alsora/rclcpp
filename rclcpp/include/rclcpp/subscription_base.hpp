@@ -31,8 +31,6 @@
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 namespace rclcpp
 {
 

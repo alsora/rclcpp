@@ -35,10 +35,6 @@
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/visibility_control.hpp"
 
-#include "rclcpp/intra_process_setting.hpp"
-
-#include <iostream>
-
 namespace rclcpp
 {
 namespace intra_process_manager

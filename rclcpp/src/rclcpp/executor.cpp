@@ -30,8 +30,6 @@
 
 #include "rcutils/logging_macros.h"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 using rclcpp::exceptions::throw_from_rcl_error;
 using rclcpp::executor::AnyExecutable;
 using rclcpp::executor::Executor;
@@ -287,9 +285,6 @@ Executor::execute_any_executable(AnyExecutable & any_exec)
   if (any_exec.subscription) {
     execute_subscription(any_exec.subscription);
   }
-  //if (any_exec.subscription_intra_process) {
-  //  execute_intra_process_subscription(any_exec.subscription_intra_process);
-  //}
   if (any_exec.service) {
     execute_service(any_exec.service);
   }

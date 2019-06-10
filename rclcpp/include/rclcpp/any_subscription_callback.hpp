@@ -27,8 +27,6 @@
 #include "rclcpp/function_traits.hpp"
 #include "rclcpp/visibility_control.hpp"
 
-#include <iostream>
-
 namespace rclcpp
 {
 

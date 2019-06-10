@@ -23,6 +23,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 
@@ -38,19 +39,13 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
+#include "rclcpp/queues/cpqueue.hpp"
 #include "rclcpp/subscription_base.hpp"
+#include "rclcpp/subscription_intra_process_waitable.hpp"
 #include "rclcpp/subscription_traits.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 #include "rclcpp/waitable.hpp"
-
-
-#include "rclcpp/queues/cpqueue.hpp"
-
-#include "rclcpp/subscription_intra_process_waitable.hpp"
-#include "rclcpp/intra_process_setting.hpp"
-
-#include <type_traits>
 
 namespace rclcpp
 {
@@ -245,8 +240,11 @@ public:
   >::type
   add_shared_message_to_buffer_impl(std::shared_ptr<const void> shared_msg)
   {
-    std::cout<<"Using add_shared_message_to_buffer_impl for UniquePtr queue!"<<std::endl;
-    //This function should not be used
+    (void)shared_msg;
+    /**
+     * This function should not be used.
+     */
+    throw std::runtime_error("add_shared_message_to_buffer_impl for MessageUniquePtr queue");
   }
 
 
@@ -271,11 +269,11 @@ public:
   >::type
   add_owned_message_to_buffer_impl(void* msg)
   {
-    std::cout<<"Using add_owned_message_to_buffer_impl for ConstMessageSharedPtr queue!"<<std::endl;
-    //This function should not be used
-
-    //ConstMessageSharedPtr shared_msg(static_cast<CallbackMessageT*>(msg));
-    //typed_queue->add(shared_msg);
+    (void)msg;
+    /**
+     * This function should not be used.
+     */
+    throw std::runtime_error("add_owned_message_to_buffer_impl for ConstMessageSharedPtr queue");
   }
 
   // void* to MessageUniquePtr
