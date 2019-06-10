@@ -6,7 +6,6 @@
 #include <rmw/rmw.h>
 
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -75,16 +74,12 @@ public:
   std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_;
   AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
 
-  //QueueT queue_msg;
-
   IntraProcessSubscriptionWaitable(): rclcpp::Waitable(){}
 
   void init(
     AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
-    std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_ptr
-  )
+    std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_ptr)
   {
-
     any_callback_ = callback_ptr;
     queue_ = queue_ptr;
 
@@ -99,9 +94,8 @@ public:
         &gc_, context_ptr->get_rcl_context().get(), guard_condition_options);
 
     if (RCL_RET_OK != ret){
-      std::cout<<"Error initializing guard condition IPC"<<std::endl;
+      throw std::runtime_error("IntraProcessWaitable init error initializing guard condition");
     }
-
   }
 
 size_t
@@ -117,7 +111,8 @@ add_to_wait_set(rcl_wait_set_t * wait_set)
 }
 
 bool
-is_ready(rcl_wait_set_t * wait_set) {
+is_ready(rcl_wait_set_t * wait_set)
+{
   (void)wait_set;
   return queue_->hasData();
 }

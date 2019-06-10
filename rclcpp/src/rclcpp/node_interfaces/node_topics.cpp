@@ -19,8 +19,6 @@
 #include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/exceptions.hpp"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 using rclcpp::exceptions::throw_from_rcl_error;
 
 using rclcpp::node_interfaces::NodeTopics;

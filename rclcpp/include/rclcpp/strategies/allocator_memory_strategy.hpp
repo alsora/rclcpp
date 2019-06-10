@@ -29,8 +29,6 @@
 
 #include "rmw/types.h"
 
-#include "rclcpp/intra_process_setting.hpp"
-
 namespace rclcpp
 {
 namespace memory_strategies
