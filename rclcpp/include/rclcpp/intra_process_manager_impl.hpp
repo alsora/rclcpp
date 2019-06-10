@@ -184,6 +184,11 @@ public:
     SubscriptionBase::SharedPtr subscription,
     rcl_subscription_options_t options)
   {
+
+    if (subscriptions_.find(id) != subscriptions_.end()){
+      return;
+    }
+
     subscriptions_[id].subscription = subscription;
     subscriptions_[id].topic_name = subscription->get_topic_name();
     subscriptions_[id].use_take_shared_method = subscription->use_take_shared_method();
@@ -213,6 +218,11 @@ public:
     PublisherBase::SharedPtr publisher,
     rcl_publisher_options_t options)
   {
+
+    if (publishers_.find(id) != publishers_.end()){
+      return;
+    }
+
     publishers_[id].publisher = publisher;
     publishers_[id].topic_name = publisher->get_topic_name();
     publishers_[id].options = options;
