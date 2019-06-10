@@ -208,7 +208,7 @@ public:
    * The message has been shared with the Intra Process Manager that does not own it.
    * If the subscription wants ownership it's always necessary to make a copy
    */
-  void add_shared_message_to_buffer(std::shared_ptr<const void> shared_msg)
+  void add_message_to_buffer(std::shared_ptr<const void> shared_msg)
   {
     add_shared_message_to_buffer_impl<QueueT>(shared_msg);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
@@ -218,12 +218,11 @@ public:
   /**
    * Adds a void* message to the intra-process communication buffer of this Subscription.
    * The message has to be converted into the QueueT type.
-   * The message is owned by the Intra Process Manager that can give up ownership if needed.
-   * The intra-process manager tells the subscription if the message can be taken or if a copy is needed
+   * The message is owned by the Intra Process Manager that is giving up ownership to the subscription.
    */
-  void add_owned_message_to_buffer(void* msg, bool can_be_taken)
+  void add_message_to_buffer(void* msg)
   {
-    add_owned_message_to_buffer_impl<QueueT>(msg, can_be_taken);
+    add_owned_message_to_buffer_impl<QueueT>(msg);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
     (void)ret;
   }
@@ -273,19 +272,10 @@ public:
   typename std::enable_if<
   std::is_same<DestinationT, ConstMessageSharedPtr>::value
   >::type
-  add_owned_message_to_buffer_impl(void* msg, bool can_be_taken)
+  add_owned_message_to_buffer_impl(void* msg)
   {
-    if (can_be_taken){
-      ConstMessageSharedPtr shared_msg(static_cast<CallbackMessageT*>(msg));
-      typed_queue->add(shared_msg);
-    }
-    else{
-      CallbackMessageT* casted_msg_ptr = static_cast<CallbackMessageT*>(msg);
-      auto ptr = MessageAllocTraits::allocate(*message_allocator_.get(), 1);
-      MessageAllocTraits::construct(*message_allocator_.get(), ptr, *casted_msg_ptr);
-      ConstMessageSharedPtr shared_msg(ptr);
-      typed_queue->add(shared_msg);
-    }
+    ConstMessageSharedPtr shared_msg(static_cast<CallbackMessageT*>(msg));
+    typed_queue->add(shared_msg);
   }
 
   // void* to MessageUniquePtr
@@ -293,19 +283,10 @@ public:
   typename std::enable_if<
   std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
-  add_owned_message_to_buffer_impl(void* msg, bool can_be_taken)
+  add_owned_message_to_buffer_impl(void* msg)
   {
-    if (can_be_taken){
-      MessageUniquePtr unique_msg(static_cast<CallbackMessageT*>(msg));
-      typed_queue->move_in(std::move(unique_msg));
-    }
-    else{
-      CallbackMessageT* casted_msg_ptr = static_cast<CallbackMessageT*>(msg);
-      auto ptr = MessageAllocTraits::allocate(*message_allocator_.get(), 1);
-      MessageAllocTraits::construct(*message_allocator_.get(), ptr, *casted_msg_ptr);
-      MessageUniquePtr unique_msg(ptr, message_deleter_);
-      typed_queue->move_in(std::move(unique_msg));
-    }
+    MessageUniquePtr unique_msg(static_cast<CallbackMessageT*>(msg));
+    typed_queue->move_in(std::move(unique_msg));
   }
 
   // void* to CallbackMessageT
@@ -313,9 +294,8 @@ public:
   typename std::enable_if<
   std::is_same<DestinationT, CallbackMessageT>::value
   >::type
-  add_owned_message_to_buffer_impl(void* msg, bool can_be_taken)
+  add_owned_message_to_buffer_impl(void* msg)
   {
-    (void)can_be_taken;
     CallbackMessageT* casted_message = static_cast<CallbackMessageT*>(msg);
     typed_queue->add(*casted_message);
   }

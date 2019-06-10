@@ -250,7 +250,7 @@ public:
       take_owned_subscription_ids,
       intra_process_publisher_id);
 
-    // in this case we make no difference on the type of subscription
+    // merge the two vector of ids into a unique one
     take_shared_subscription_ids.insert(
       take_owned_subscription_ids.begin(), take_owned_subscription_ids.end());
 
@@ -273,7 +273,6 @@ public:
       take_owned_subscription_ids,
       intra_process_publisher_id);
 
-
     if (take_owned_subscription_ids.size() == 0){
 
       std::shared_ptr<void> msg = std::move(message);
@@ -282,19 +281,22 @@ public:
     }
     else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() <= 1){
 
-      void* msg = message.release();
+      // merge the two vector of ids into a unique one
+      take_owned_subscription_ids.insert(
+        take_shared_subscription_ids.begin(), take_shared_subscription_ids.end());
 
-      this->add_owned_msg_to_buffers(msg, take_shared_subscription_ids, false);
-      this->add_owned_msg_to_buffers(msg, take_owned_subscription_ids, true);
+      this->template add_owned_msg_to_buffers<MessageT, Deleter>(
+        std::move(message),
+        take_owned_subscription_ids);
     }
-    else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 0){
+    else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 1){
 
       std::shared_ptr<void> shared_msg = std::make_shared<MessageT>(*message);
 
       this->add_shared_msg_to_buffers(shared_msg, take_shared_subscription_ids);
-
-      void* msg = message.release();
-      this->add_owned_msg_to_buffers(msg, take_owned_subscription_ids, true);
+      this->template add_owned_msg_to_buffers<MessageT, Deleter>(
+        std::move(message),
+        take_owned_subscription_ids);
     }
   }
 
@@ -324,15 +326,17 @@ private:
       if (!subscription) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
-      subscription->add_shared_message_to_buffer(message);
+      subscription->add_message_to_buffer(message);
     }
   }
 
+  template<
+    typename MessageT,
+    typename Deleter = std::default_delete<MessageT>>
   void
   add_owned_msg_to_buffers(
-    void* message,
-    std::set<uint64_t> subscription_ids,
-    bool giveup_ownership_to_last = true)
+    std::unique_ptr<MessageT, Deleter> message,
+    std::set<uint64_t> subscription_ids)
   {
     for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++){
       auto weak_subscription = impl_->get_subscription(*it);
@@ -341,13 +345,14 @@ private:
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      if (giveup_ownership_to_last && std::next(it) == subscription_ids.end()) {
-        bool can_be_taken = true;
-        subscription->add_owned_message_to_buffer(message, can_be_taken);
+      // If this is the last subscription, give up ownership
+      if (std::next(it) == subscription_ids.end()) {
+        subscription->add_message_to_buffer(message.release());
       }
+      // Copy the message since we have additional subscriptions to serve
       else{
-        bool can_be_taken = false;
-        subscription->add_owned_message_to_buffer(message, can_be_taken);
+        MessageT* copy_message = new MessageT(*message);
+        subscription->add_message_to_buffer(copy_message);
       }
     }
   }
