@@ -245,11 +245,8 @@ public:
   >::type
   add_shared_message_to_buffer_impl(std::shared_ptr<const void> shared_msg)
   {
-    auto casted_msg_ptr = std::static_pointer_cast<const CallbackMessageT>(shared_msg);
-    auto ptr = MessageAllocTraits::allocate(*message_allocator_.get(), 1);
-    MessageAllocTraits::construct(*message_allocator_.get(), ptr, *casted_msg_ptr);
-    MessageUniquePtr unique_msg(ptr, message_deleter_);
-    typed_queue->move_in(std::move(unique_msg));
+    std::cout<<"Using add_shared_message_to_buffer_impl for UniquePtr queue!"<<std::endl;
+    //This function should not be used
   }
 
 
@@ -274,8 +271,11 @@ public:
   >::type
   add_owned_message_to_buffer_impl(void* msg)
   {
-    ConstMessageSharedPtr shared_msg(static_cast<CallbackMessageT*>(msg));
-    typed_queue->add(shared_msg);
+    std::cout<<"Using add_owned_message_to_buffer_impl for ConstMessageSharedPtr queue!"<<std::endl;
+    //This function should not be used
+
+    //ConstMessageSharedPtr shared_msg(static_cast<CallbackMessageT*>(msg));
+    //typed_queue->add(shared_msg);
   }
 
   // void* to MessageUniquePtr
