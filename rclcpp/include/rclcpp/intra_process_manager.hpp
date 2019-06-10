@@ -250,11 +250,15 @@ public:
       take_owned_subscription_ids,
       intra_process_publisher_id);
 
-    // merge the two vector of ids into a unique one
-    take_shared_subscription_ids.insert(
-      take_owned_subscription_ids.begin(), take_owned_subscription_ids.end());
-
     this->add_shared_msg_to_buffers(message, take_shared_subscription_ids);
+
+    if (take_owned_subscription_ids.size() > 0){
+      auto unique_msg = std::make_unique<MessageT>(*message);
+      this->template add_owned_msg_to_buffers<MessageT>(
+        std::move(unique_msg),
+        take_owned_subscription_ids);
+    }
+
   }
 
   template<
@@ -305,7 +309,7 @@ public:
   bool
   matches_any_publishers(const rmw_gid_t * id) const;
 
-  /// Return the number of intraprocess subscriptions to a topic, given the publisher id.
+  /// Return the number of intraprocess subscriptions that are matched with a given publisher id.
   RCLCPP_PUBLIC
   size_t
   get_subscription_count(uint64_t intra_process_publisher_id) const;
