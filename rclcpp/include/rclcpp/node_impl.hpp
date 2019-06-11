@@ -145,7 +145,7 @@ Node::create_subscription(
       throw std::runtime_error("Unrecognized IntraProcessSetting value");
       break;
   }
-  if (use_intra_process){
+  if (use_intra_process) {
     std::shared_ptr<rclcpp::Waitable> waitable_ptr =
       sub->get_intra_process_waitable();
     this->get_node_waitables_interface()->add_waitable(waitable_ptr, nullptr);

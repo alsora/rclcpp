@@ -149,7 +149,8 @@ public:
    */
   RCLCPP_PUBLIC
   uint64_t
-  add_subscription(SubscriptionBase::SharedPtr subscription,
+  add_subscription(
+    SubscriptionBase::SharedPtr subscription,
     rcl_subscription_options_t options);
 
   /// Unregister a subscription using the subscription's unique id.
@@ -248,13 +249,12 @@ public:
 
     this->add_shared_msg_to_buffers(message, take_shared_subscription_ids);
 
-    if (take_owned_subscription_ids.size() > 0){
+    if (take_owned_subscription_ids.size() > 0) {
       auto unique_msg = std::make_unique<MessageT>(*message);
       this->template add_owned_msg_to_buffers<MessageT>(
         std::move(unique_msg),
         take_owned_subscription_ids);
     }
-
   }
 
   template<
@@ -273,14 +273,11 @@ public:
       take_owned_subscription_ids,
       intra_process_publisher_id);
 
-    if (take_owned_subscription_ids.size() == 0){
-
+    if (take_owned_subscription_ids.size() == 0) {
       std::shared_ptr<void> msg = std::move(message);
 
       this->add_shared_msg_to_buffers(msg, take_shared_subscription_ids);
-    }
-    else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() <= 1){
-
+    } else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() <= 1) {
       // merge the two vector of ids into a unique one
       take_owned_subscription_ids.insert(
         take_shared_subscription_ids.begin(), take_shared_subscription_ids.end());
@@ -288,9 +285,7 @@ public:
       this->template add_owned_msg_to_buffers<MessageT, Deleter>(
         std::move(message),
         take_owned_subscription_ids);
-    }
-    else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 1){
-
+    } else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 1) {
       std::shared_ptr<void> shared_msg = std::make_shared<MessageT>(*message);
 
       this->add_shared_msg_to_buffers(shared_msg, take_shared_subscription_ids);
@@ -320,7 +315,7 @@ private:
     std::shared_ptr<const void> message,
     std::set<uint64_t> subscription_ids)
   {
-    for (auto id : subscription_ids){
+    for (auto id : subscription_ids) {
       auto weak_subscription = impl_->get_subscription(id);
       auto subscription = weak_subscription.lock();
       if (!subscription) {
@@ -338,20 +333,19 @@ private:
     std::unique_ptr<MessageT, Deleter> message,
     std::set<uint64_t> subscription_ids)
   {
-    for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++){
+    for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
       auto weak_subscription = impl_->get_subscription(*it);
       auto subscription = weak_subscription.lock();
       if (!subscription) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      // If this is the last subscription, give up ownership
       if (std::next(it) == subscription_ids.end()) {
+        // If this is the last subscription, give up ownership
         subscription->add_message_to_buffer(message.release());
-      }
-      // Copy the message since we have additional subscriptions to serve
-      else{
-        MessageT* copy_message = new MessageT(*message);
+      } else {
+        // Copy the message since we have additional subscriptions to serve
+        MessageT * copy_message = new MessageT(*message);
         subscription->add_message_to_buffer(copy_message);
       }
     }

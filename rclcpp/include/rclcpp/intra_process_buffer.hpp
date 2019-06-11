@@ -1,8 +1,23 @@
-#ifndef __INTRA_PROCESS_BUFFER_HPP__
-#define __INTRA_PROCESS_BUFFER_HPP__
+// Copyright 2019 Open Source Robotics Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef RCLCPP__INTRA_PROCESS_BUFFER_HPP_
+#define RCLCPP__INTRA_PROCESS_BUFFER_HPP_
 
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "rclcpp/buffers/buffer_implementation_base.hpp"
 
@@ -17,9 +32,9 @@ public:
   //RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBufferBase)
 
   virtual void add(std::shared_ptr<const void> shared_msg) = 0;
-  virtual void add(void* msg) = 0;
+  virtual void add(void * msg) = 0;
 
-  virtual bool hasData() const = 0;
+  virtual bool has_data() const = 0;
   virtual void clear() = 0;
 };
 
@@ -38,9 +53,9 @@ public:
   using MessageUniquePtr = std::unique_ptr<MessageT>;
 
   static_assert(std::is_same<BufferT, MessageT>::value ||
-              std::is_same<BufferT, ConstMessageSharedPtr>::value ||
-              std::is_same<BufferT, MessageUniquePtr>::value,
-              "BufferT is not a valid type");
+    std::is_same<BufferT, ConstMessageSharedPtr>::value ||
+    std::is_same<BufferT, MessageUniquePtr>::value,
+    "BufferT is not a valid type");
 
   IntraProcessBuffer(
     std::shared_ptr<BufferImplementationBase<BufferT>> buffer_impl)
@@ -64,19 +79,19 @@ public:
    * The message has to be converted into the BufferT type.
    * The ownership of the message has been given to this object.
    */
-  void add(void* msg)
+  void add(void * msg)
   {
     add_owned_message<BufferT>(msg);
   }
 
-  void consume(BufferT &msg)
+  void consume(BufferT & msg)
   {
     buffer_->dequeue(msg);
   }
 
-  bool hasData() const
+  bool has_data() const
   {
-    return buffer_->hasData();
+    return buffer_->has_data();
   }
 
   void clear()
@@ -85,11 +100,10 @@ public:
   }
 
 private:
-
   // shared_ptr to ConstMessageSharedPtr
-  template <typename DestinationT>
+  template<typename DestinationT>
   typename std::enable_if<
-  std::is_same<DestinationT, ConstMessageSharedPtr>::value
+    std::is_same<DestinationT, ConstMessageSharedPtr>::value
   >::type
   add_shared_message(std::shared_ptr<const void> shared_msg)
   {
@@ -98,9 +112,9 @@ private:
   }
 
   // shared_ptr to MessageUniquePtr
-  template <typename DestinationT>
+  template<typename DestinationT>
   typename std::enable_if<
-  std::is_same<DestinationT, MessageUniquePtr>::value
+    std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
   add_shared_message(std::shared_ptr<const void> shared_msg)
   {
@@ -112,11 +126,11 @@ private:
   }
 
   // shared_ptr to MessageT
-  template <typename DestinationT>
+  template<typename DestinationT>
   typename std::enable_if<
-  !std::is_same<DestinationT, ConstMessageSharedPtr>::value
-  &&
-  !std::is_same<DestinationT, MessageUniquePtr>::value
+    !std::is_same<DestinationT, ConstMessageSharedPtr>::value
+    &&
+    !std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
   add_shared_message(std::shared_ptr<const void> shared_msg)
   {
@@ -126,11 +140,11 @@ private:
   }
 
   // void* to ConstMessageSharedPtr
-  template <typename DestinationT>
+  template<typename DestinationT>
   typename std::enable_if<
-  std::is_same<DestinationT, ConstMessageSharedPtr>::value
+    std::is_same<DestinationT, ConstMessageSharedPtr>::value
   >::type
-  add_owned_message(void* msg)
+  add_owned_message(void * msg)
   {
     (void)msg;
     /**
@@ -140,33 +154,32 @@ private:
   }
 
   // void* to MessageUniquePtr
-  template <typename DestinationT>
+  template<typename DestinationT>
   typename std::enable_if<
-  std::is_same<DestinationT, MessageUniquePtr>::value
+    std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
-  add_owned_message(void* msg)
+  add_owned_message(void * msg)
   {
-    MessageUniquePtr unique_msg(static_cast<MessageT*>(msg));
+    MessageUniquePtr unique_msg(static_cast<MessageT *>(msg));
     buffer_->enqueue(std::move(unique_msg));
   }
 
   // void* to CallbackMessageT
-  template <typename DestinationT>
+  template<typename DestinationT>
   typename std::enable_if<
-  !std::is_same<DestinationT, ConstMessageSharedPtr>::value
-  &&
-  !std::is_same<DestinationT, MessageUniquePtr>::value
+    !std::is_same<DestinationT, ConstMessageSharedPtr>::value
+    &&
+    !std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
-  add_owned_message(void* msg)
+  add_owned_message(void * msg)
   {
-    MessageT* casted_message = static_cast<MessageT*>(msg);
+    MessageT * casted_message = static_cast<MessageT *>(msg);
     buffer_->enqueue(*casted_message);
   }
-
 };
 
-}
-}
+}  // namespace intra_process_buffer
+}  // namespace rclcpp
 
 
-#endif  //__INTRA_PROCESS_BUFFER_HPP__
+#endif  // RCLCPP__INTRA_PROCESS_BUFFER_HPP_
