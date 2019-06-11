@@ -153,13 +153,14 @@ public:
     std::weak_ptr<rclcpp::intra_process_manager::IntraProcessManager>;
 
   /// Implemenation detail.
-  void setup_intra_process(
-    uint64_t intra_process_subscription_id,
-    IntraProcessManagerWeakPtr weak_ipm,
-    const rcl_subscription_options_t & intra_process_options);
-
   virtual void
-  create_intra_process_tools(IntraProcessBufferType buffer_type) = 0;
+  setup_intra_process(
+    IntraProcessBufferType buffer_type,
+    const rcl_subscription_options_t & intra_process_options) = 0;
+
+  void set_intra_process_manager(
+    uint64_t intra_process_subscription_id,
+    IntraProcessManagerWeakPtr weak_ipm);
 
   virtual std::shared_ptr<rclcpp::Waitable>
   get_intra_process_waitable() = 0;

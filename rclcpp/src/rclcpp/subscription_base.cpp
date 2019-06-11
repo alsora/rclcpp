@@ -157,13 +157,10 @@ SubscriptionBase::get_publisher_count() const
   return inter_process_publisher_count;
 }
 
-void SubscriptionBase::setup_intra_process(
+void SubscriptionBase::set_intra_process_manager(
   uint64_t intra_process_subscription_id,
-  IntraProcessManagerWeakPtr weak_ipm,
-  const rcl_subscription_options_t & intra_process_options)
+  IntraProcessManagerWeakPtr weak_ipm)
 {
-  (void)intra_process_options;
-
   intra_process_subscription_id_ = intra_process_subscription_id;
   weak_ipm_ = weak_ipm;
   use_intra_process_ = true;

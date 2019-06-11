@@ -1,10 +1,10 @@
-#ifndef __QUEUES_INTRA_PROCESS_BUFFER_HPP__
-#define __QUEUES_INTRA_PROCESS_BUFFER_HPP__
+#ifndef __INTRA_PROCESS_BUFFER_HPP__
+#define __INTRA_PROCESS_BUFFER_HPP__
 
-#include <queue>
-#include <mutex>
-#include <condition_variable>
+#include <memory>
+#include <type_traits>
 
+#include "rclcpp/buffers/buffer_implementation_base.hpp"
 
 namespace rclcpp
 {
@@ -19,9 +19,8 @@ public:
   virtual void add(std::shared_ptr<const void> shared_msg) = 0;
   virtual void add(void* msg) = 0;
 
-  virtual bool isEmpty() const = 0;
-  virtual bool isFull() const = 0;
   virtual bool hasData() const = 0;
+  virtual void clear() = 0;
 };
 
 
@@ -30,10 +29,8 @@ template<
   typename BufferT = MessageT>
 class IntraProcessBuffer : public IntraProcessBufferBase
 {
-  std::condition_variable cond;
-  std::mutex mutex;
-  size_t maxSize;
-  std::queue<BufferT> cpq;
+  std::shared_ptr<BufferImplementationBase<BufferT>> buffer_;
+  //BufferImplementationBase<BufferT>::SharedPtr buffer_;
 
 public:
   //RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBuffer<MessageT, BufferT>)
@@ -45,9 +42,11 @@ public:
               std::is_same<BufferT, MessageUniquePtr>::value,
               "BufferT is not a valid type");
 
-  IntraProcessBuffer(size_t mxsz)
-  : maxSize(mxsz)
-  { }
+  IntraProcessBuffer(
+    std::shared_ptr<BufferImplementationBase<BufferT>> buffer_impl)
+  {
+    buffer_ = buffer_impl;
+  }
 
   /**
    * Adds a std::shared_ptr<const void> message to the intra-process communication buffer.
@@ -70,46 +69,19 @@ public:
     add_owned_message<BufferT>(msg);
   }
 
-  void consume(BufferT &request)
+  void consume(BufferT &msg)
   {
-    std::unique_lock<std::mutex> lock(mutex);
-    cond.wait(lock, [this]()
-        { return !isEmpty(); });
-    request = std::move(cpq.front());
-    cpq.pop();
-    lock.unlock();
-    cond.notify_all();
-  }
-
-  bool isFull() const
-  {
-    return cpq.size() >= maxSize;
-  }
-
-  bool isEmpty() const
-  {
-    return cpq.size() == 0;
+    buffer_->dequeue(msg);
   }
 
   bool hasData() const
   {
-    return cpq.size();
-  }
-
-  int length() const
-  {
-    return cpq.size();
+    return buffer_->hasData();
   }
 
   void clear()
   {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (!isEmpty())
-    {
-        cpq.pop();
-    }
-    lock.unlock();
-    cond.notify_all();
+    buffer_->clear();
   }
 
 private:
@@ -122,7 +94,7 @@ private:
   add_shared_message(std::shared_ptr<const void> shared_msg)
   {
     auto shared_casted_msg = std::static_pointer_cast<const MessageT>(shared_msg);
-    add_impl(shared_casted_msg);
+    buffer_->enqueue(shared_casted_msg);
   }
 
   // shared_ptr to MessageUniquePtr
@@ -150,7 +122,7 @@ private:
   {
     auto shared_casted_msg = std::static_pointer_cast<const MessageT>(shared_msg);
     MessageT msg = *shared_casted_msg;
-    add_impl(msg);
+    buffer_->enqueue(msg);
   }
 
   // void* to ConstMessageSharedPtr
@@ -175,7 +147,7 @@ private:
   add_owned_message(void* msg)
   {
     MessageUniquePtr unique_msg(static_cast<MessageT*>(msg));
-    add_impl(std::move(unique_msg));
+    buffer_->enqueue(std::move(unique_msg));
   }
 
   // void* to CallbackMessageT
@@ -188,20 +160,7 @@ private:
   add_owned_message(void* msg)
   {
     MessageT* casted_message = static_cast<MessageT*>(msg);
-    add_impl(*casted_message);
-  }
-
-  /**
-   * Adds a BufferT message to the intra-process communication buffer.
-   */
-  void add_impl(BufferT request)
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    cond.wait(lock, [this]()
-        { return !isFull(); });
-    cpq.push(std::move(request));
-    lock.unlock();
-    cond.notify_all();
+    buffer_->enqueue(*casted_message);
   }
 
 };
@@ -210,4 +169,4 @@ private:
 }
 
 
-#endif  //__QUEUES_INTRA_PROCESS_BUFFER_HPP__
+#endif  //__INTRA_PROCESS_BUFFER_HPP__

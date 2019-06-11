@@ -32,13 +32,14 @@
 #include "rcl_interfaces/msg/intra_process_message.hpp"
 
 #include "rclcpp/any_subscription_callback.hpp"
+#include "rclcpp/buffers/simple_queue_implementation.hpp"
 #include "rclcpp/exceptions.hpp"
 #include "rclcpp/expand_topic_or_service_name.hpp"
 #include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
-#include "rclcpp/queues/intra_process_buffer.hpp"
+#include "rclcpp/intra_process_buffer.hpp"
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/subscription_intra_process_waitable.hpp"
 #include "rclcpp/subscription_traits.hpp"
@@ -161,8 +162,12 @@ public:
     message_memory_strategy_->return_serialized_message(message);
   }
 
-  void create_intra_process_tools(IntraProcessBufferType buffer_type)
+  void setup_intra_process(
+    IntraProcessBufferType buffer_type,
+    const rcl_subscription_options_t & options)
   {
+    (void)options;
+
     // If the user has not specified a type for the intraprocess buffer, use the callback one
     if (buffer_type == IntraProcessBufferType::CallbackDefault){
       buffer_type = this->use_take_shared_method() ?
@@ -174,9 +179,12 @@ public:
       {
         using BufferT = ConstMessageSharedPtr;
 
+        auto buffer_implementation =
+          std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+
         // construct the intra_process_buffer
         auto typed_buffer =
-          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(100);
+          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(buffer_implementation);
         intra_process_buffer = typed_buffer;
 
         // construct the waitable
@@ -190,9 +198,12 @@ public:
       {
         using BufferT = MessageUniquePtr;
 
+        auto buffer_implementation =
+          std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+
         // construct the intra_process_buffer
         auto typed_buffer =
-          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(100);
+          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(buffer_implementation);
         intra_process_buffer = typed_buffer;
 
         // construct the waitable
@@ -206,9 +217,12 @@ public:
       {
         using BufferT = CallbackMessageT;
 
+        auto buffer_implementation =
+          std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+
         // construct the intra_process_buffer
         auto typed_buffer =
-          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(100);
+          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(buffer_implementation);
         intra_process_buffer = typed_buffer;
 
         // construct the waitable

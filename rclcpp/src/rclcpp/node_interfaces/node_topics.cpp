@@ -104,12 +104,12 @@ NodeTopics::create_subscription(
 
   // Setup intra process communication if requested.
   if (use_intra_process) {
-    subscription->create_intra_process_tools(buffer_type);
+    subscription->setup_intra_process(buffer_type, subscription_options);
     auto context = node_base_->get_context();
     auto ipm =
       context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
     uint64_t intra_process_subscription_id = ipm->add_subscription(subscription, subscription_options);
-    subscription->setup_intra_process(intra_process_subscription_id, ipm, subscription_options);
+    subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
   }
 
   // Return the completed subscription.
