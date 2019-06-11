@@ -169,81 +169,84 @@ public:
     (void)options;
 
     // If the user has not specified a type for the intraprocess buffer, use the callback one
-    if (buffer_type == IntraProcessBufferType::CallbackDefault){
+    if (buffer_type == IntraProcessBufferType::CallbackDefault) {
       buffer_type = this->use_take_shared_method() ?
         IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
     }
 
     switch (buffer_type) {
       case IntraProcessBufferType::SharedPtr:
-      {
-        using BufferT = ConstMessageSharedPtr;
+        {
+          using BufferT = ConstMessageSharedPtr;
 
-        auto buffer_implementation =
-          std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+          auto buffer_implementation =
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
 
-        // construct the intra_process_buffer
-        auto typed_buffer =
-          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(buffer_implementation);
-        intra_process_buffer = typed_buffer;
+          // construct the intra_process_buffer
+          auto typed_buffer =
+            std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT,
+              BufferT>>(buffer_implementation);
+          intra_process_buffer = typed_buffer;
 
-        // construct the waitable
-        waitable_ptr =
-          std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
-          (&any_callback_, typed_buffer);
+          // construct the waitable
+          waitable_ptr =
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
+            (&any_callback_, typed_buffer);
 
-        break;
-      }
+          break;
+        }
       case IntraProcessBufferType::UniquePtr:
-      {
-        using BufferT = MessageUniquePtr;
+        {
+          using BufferT = MessageUniquePtr;
 
-        auto buffer_implementation =
-          std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+          auto buffer_implementation =
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
 
-        // construct the intra_process_buffer
-        auto typed_buffer =
-          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(buffer_implementation);
-        intra_process_buffer = typed_buffer;
+          // construct the intra_process_buffer
+          auto typed_buffer =
+            std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT,
+              BufferT>>(buffer_implementation);
+          intra_process_buffer = typed_buffer;
 
-        // construct the waitable
-        waitable_ptr =
-          std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
-          (&any_callback_, typed_buffer);
+          // construct the waitable
+          waitable_ptr =
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>(
+            &any_callback_, typed_buffer);
 
-        break;
-      }
+          break;
+        }
       case IntraProcessBufferType::MessageT:
-      {
-        using BufferT = CallbackMessageT;
+        {
+          using BufferT = CallbackMessageT;
 
-        auto buffer_implementation =
-          std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+          auto buffer_implementation =
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
 
-        // construct the intra_process_buffer
-        auto typed_buffer =
-          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(buffer_implementation);
-        intra_process_buffer = typed_buffer;
+          // construct the intra_process_buffer
+          auto typed_buffer =
+            std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT,
+              BufferT>>(buffer_implementation);
+          intra_process_buffer = typed_buffer;
 
-        // construct the waitable
-        waitable_ptr =
-          std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
-          (&any_callback_, typed_buffer);
+          // construct the waitable
+          waitable_ptr =
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>(
+            &any_callback_, typed_buffer);
 
-        break;
-      }
+          break;
+        }
       case IntraProcessBufferType::CallbackDefault:
-      {
-        throw std::runtime_error("IntraProcessBufferType::CallbackDefault should have been overwritten");
-        break;
-      }
+        {
+          throw std::runtime_error(
+              "IntraProcessBufferType::CallbackDefault should have been overwritten");
+          break;
+        }
       default:
-      {
-        throw std::runtime_error("Unrecognized IntraProcessBufferType value");
-        break;
-      }
+        {
+          throw std::runtime_error("Unrecognized IntraProcessBufferType value");
+          break;
+        }
     }
-
   }
 
   std::shared_ptr<rclcpp::Waitable>
@@ -259,7 +262,8 @@ public:
   }
 
   /**
-   * Adds a std::shared_ptr<const void> message to the intra-process communication buffer of this Subscription.
+   * Adds a std::shared_ptr<const void> message to the
+   * intra-process communication buffer of this Subscription.
    * The message has to be converted into the BufferT type.
    * The message has been shared with the Intra Process Manager that does not own it.
    * If the subscription wants ownership it's always necessary to make a copy
@@ -276,7 +280,7 @@ public:
    * The message has to be converted into the BufferT type.
    * The message is owned by the Intra Process Manager that is giving up ownership to the subscription.
    */
-  void add_message_to_buffer(void* msg)
+  void add_message_to_buffer(void * msg)
   {
     intra_process_buffer->add(msg);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
@@ -284,8 +288,7 @@ public:
   }
 
 private:
-
-  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase > intra_process_buffer;
+  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase> intra_process_buffer;
   std::shared_ptr<IntraProcessSubscriptionWaitableBase> waitable_ptr;
 
   std::shared_ptr<MessageAlloc> message_allocator_;

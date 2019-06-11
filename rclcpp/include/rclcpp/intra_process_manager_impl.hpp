@@ -75,8 +75,8 @@ public:
 
   virtual void
   get_subscription_ids_for_pub(
-    std::set<uint64_t>& take_shared_ids,
-    std::set<uint64_t>& take_owned_ids,
+    std::set<uint64_t> & take_shared_ids,
+    std::set<uint64_t> & take_owned_ids,
     uint64_t intra_process_publisher_id) const = 0;
 
   virtual SubscriptionBase::WeakPtr
@@ -89,7 +89,6 @@ private:
 template<typename Allocator = std::allocator<void>>
 class IntraProcessManagerImpl : public IntraProcessManagerImplBase
 {
-
 private:
   RCLCPP_DISABLE_COPY(IntraProcessManagerImpl)
 
@@ -99,7 +98,7 @@ private:
 
     SubscriptionBase::WeakPtr subscription;
     rcl_subscription_options_t options;
-    const char* topic_name;
+    const char * topic_name;
     bool use_take_shared_method;
   };
 
@@ -109,7 +108,7 @@ private:
 
     PublisherBase::WeakPtr publisher;
     rcl_publisher_options_t options;
-    const char* topic_name;
+    const char * topic_name;
   };
 
   struct SplittedSubscriptions
@@ -142,10 +141,9 @@ private:
 
   void insert_sub_id_for_pub(uint64_t sub_id, uint64_t pub_id, bool use_take_shared_method)
   {
-    if (use_take_shared_method){
+    if (use_take_shared_method) {
       pub_to_subs_[pub_id].take_shared_subscriptions.insert(sub_id);
-    }
-    else{
+    } else {
       pub_to_subs_[pub_id].take_ownership_subscriptions.insert(sub_id);
     }
   }
@@ -153,19 +151,21 @@ private:
   bool can_communicate(PublisherInfo pub_info, SubscriptionInfo sub_info)
   {
     // publisher and subscription must be on the same topic
-    if (strcmp(pub_info.topic_name, sub_info.topic_name) != 0){
+    if (strcmp(pub_info.topic_name, sub_info.topic_name) != 0) {
       return false;
     }
 
     // a reliable subscription can't be connected with a best effort publisher
     if (sub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE &&
-      pub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT){
+      pub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
+    {
       return false;
     }
 
     // a transient local subscription can't be connected with a volatile publisher
     if (sub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL &&
-      pub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_VOLATILE){
+      pub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_VOLATILE)
+    {
       return false;
     }
 
@@ -182,8 +182,7 @@ public:
     SubscriptionBase::SharedPtr subscription,
     rcl_subscription_options_t options)
   {
-
-    if (subscriptions_.find(id) != subscriptions_.end()){
+    if (subscriptions_.find(id) != subscriptions_.end()) {
       return;
     }
 
@@ -193,8 +192,8 @@ public:
     subscriptions_[id].options = options;
 
     // adds the subscription id to all the matchable publishers
-    for (auto pair : publishers_){
-      if (can_communicate(pair.second, subscriptions_[id])){
+    for (auto pair : publishers_) {
+      if (can_communicate(pair.second, subscriptions_[id])) {
         insert_sub_id_for_pub(id, pair.first, subscriptions_[id].use_take_shared_method);
       }
     }
@@ -216,8 +215,7 @@ public:
     PublisherBase::SharedPtr publisher,
     rcl_publisher_options_t options)
   {
-
-    if (publishers_.find(id) != publishers_.end()){
+    if (publishers_.find(id) != publishers_.end()) {
       return;
     }
 
@@ -226,8 +224,8 @@ public:
     publishers_[id].options = options;
 
     // create an entry for the publisher id and populate with already existing subscriptions
-    for (auto pair : subscriptions_){
-      if (can_communicate(publishers_[id], pair.second)){
+    for (auto pair : subscriptions_) {
+      if (can_communicate(publishers_[id], pair.second)) {
         insert_sub_id_for_pub(pair.first, id, pair.second.use_take_shared_method);
       }
     }
@@ -273,8 +271,8 @@ public:
 
   void
   get_subscription_ids_for_pub(
-    std::set<uint64_t>& take_shared_ids,
-    std::set<uint64_t>& take_owned_ids,
+    std::set<uint64_t> & take_shared_ids,
+    std::set<uint64_t> & take_owned_ids,
     uint64_t intra_process_publisher_id) const
   {
     auto publisher_it = pub_to_subs_.find(intra_process_publisher_id);
@@ -291,14 +289,12 @@ public:
   get_subscription(uint64_t intra_process_subscription_id)
   {
     auto subscription_it = subscriptions_.find(intra_process_subscription_id);
-    if (subscription_it == subscriptions_.end()){
+    if (subscription_it == subscriptions_.end()) {
       return std::shared_ptr<SubscriptionBase>(nullptr);
-    }
-    else{
+    } else {
       return subscription_it->second.subscription;
     }
   }
-
 };
 
 RCLCPP_PUBLIC
