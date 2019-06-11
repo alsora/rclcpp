@@ -156,55 +156,6 @@ Node::create_subscription(
 
 template<
   typename MessageT,
-  typename QueueT,
-  typename CallbackT,
-  typename AllocatorT,
-  typename SubscriptionT>
-std::shared_ptr<SubscriptionT>
-Node::create_subscription_with_queue(
-  const std::string & topic_name,
-  const rclcpp::QoS & qos,
-  CallbackT && callback,
-  const SubscriptionOptionsWithAllocator<AllocatorT> & options,
-  typename rclcpp::message_memory_strategy::MessageMemoryStrategy<
-    typename rclcpp::subscription_traits::has_message_type<CallbackT>::type, AllocatorT>::SharedPtr
-  msg_mem_strat)
-{
-  std::shared_ptr<SubscriptionT> sub = rclcpp::create_subscription_with_queue<MessageT, QueueT>(
-    *this,
-    extend_name_with_sub_namespace(topic_name, this->get_sub_namespace()),
-    qos,
-    std::forward<CallbackT>(callback),
-    options,
-    msg_mem_strat);
-
-  // if using intra-process communication adds the intra-process waitable to node wait set
-  bool use_intra_process;
-  switch (options.use_intra_process_comm) {
-    case IntraProcessSetting::Enable:
-      use_intra_process = true;
-      break;
-    case IntraProcessSetting::Disable:
-      use_intra_process = false;
-      break;
-    case IntraProcessSetting::NodeDefault:
-      use_intra_process = this->get_node_base_interface()->get_use_intra_process_default();
-      break;
-    default:
-      throw std::runtime_error("Unrecognized IntraProcessSetting value");
-      break;
-  }
-  if (use_intra_process){
-    std::shared_ptr<rclcpp::Waitable> waitable_ptr =
-      sub->get_intra_process_waitable();
-    this->get_node_waitables_interface()->add_waitable(waitable_ptr, nullptr);
-  }
-
-  return sub;
-}
-
-template<
-  typename MessageT,
   typename CallbackT,
   typename Alloc,
   typename SubscriptionT>

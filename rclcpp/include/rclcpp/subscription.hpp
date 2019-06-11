@@ -39,7 +39,7 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
-#include "rclcpp/queues/cpqueue.hpp"
+#include "rclcpp/queues/intra_process_buffer.hpp"
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/subscription_intra_process_waitable.hpp"
 #include "rclcpp/subscription_traits.hpp"
@@ -55,15 +55,10 @@ namespace node_interfaces
 class NodeTopicsInterface;
 }  // namespace node_interfaces
 
-// typename QueueT = std::shared_ptr<const CallbackMessageT>>
-// typename QueueT = std::unique_ptr<CallbackMessageT, allocator::Deleter<typename allocator::AllocRebind<CallbackMessageT, Alloc>::allocator_type, CallbackMessageT>>>
-
-
 /// Subscription implementation, templated on the type of message this subscription receives.
 template<
   typename CallbackMessageT,
-  typename Alloc = std::allocator<void>,
-  typename QueueT = std::shared_ptr<const CallbackMessageT>>
+  typename Alloc = std::allocator<void>>
 class Subscription : public SubscriptionBase
 {
   friend class rclcpp::node_interfaces::NodeTopicsInterface;
@@ -76,11 +71,6 @@ public:
   using MessageUniquePtr = std::unique_ptr<CallbackMessageT, MessageDeleter>;
 
   RCLCPP_SMART_PTR_DEFINITIONS(Subscription)
-
-  static_assert(std::is_same<QueueT, CallbackMessageT>::value ||
-                std::is_same<QueueT, ConstMessageSharedPtr>::value ||
-                std::is_same<QueueT, MessageUniquePtr>::value
-                , "QueueT is not a valid type");
 
   /// Default constructor.
   /**
@@ -172,17 +162,75 @@ public:
     message_memory_strategy_->return_serialized_message(message);
   }
 
-  void create_intra_process_tools()
+  void create_intra_process_tools(IntraProcessBufferType buffer_type)
   {
-    // this is just a quick hack, I should build them here
-    message_allocator_ = any_callback_.get_message_allocator();
-    message_deleter_ = any_callback_.get_message_deleter();
+    // If the user has not specified a type for the intraprocess buffer, use the callback one
+    if (buffer_type == IntraProcessBufferType::CallbackDefault){
+      buffer_type = this->use_take_shared_method() ?
+        IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
+    }
 
-    // construct the queue
-    typed_queue = std::make_shared<ConsumerProducerQueue<QueueT>>(100);
+    switch (buffer_type) {
+      case IntraProcessBufferType::SharedPtr:
+      {
+        using BufferT = ConstMessageSharedPtr;
 
-    waitable_ptr = std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT,QueueT, Alloc>>();
-    waitable_ptr->init(&any_callback_, typed_queue);
+        // construct the intra_process_buffer
+        auto typed_buffer =
+          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(100);
+        intra_process_buffer = typed_buffer;
+
+        // construct the waitable
+        waitable_ptr =
+          std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
+          (&any_callback_, typed_buffer);
+
+        break;
+      }
+      case IntraProcessBufferType::UniquePtr:
+      {
+        using BufferT = MessageUniquePtr;
+
+        // construct the intra_process_buffer
+        auto typed_buffer =
+          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(100);
+        intra_process_buffer = typed_buffer;
+
+        // construct the waitable
+        waitable_ptr =
+          std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
+          (&any_callback_, typed_buffer);
+
+        break;
+      }
+      case IntraProcessBufferType::MessageT:
+      {
+        using BufferT = CallbackMessageT;
+
+        // construct the intra_process_buffer
+        auto typed_buffer =
+          std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>>(100);
+        intra_process_buffer = typed_buffer;
+
+        // construct the waitable
+        waitable_ptr =
+          std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
+          (&any_callback_, typed_buffer);
+
+        break;
+      }
+      case IntraProcessBufferType::CallbackDefault:
+      {
+        throw std::runtime_error("IntraProcessBufferType::CallbackDefault should have been overwritten");
+        break;
+      }
+      default:
+      {
+        throw std::runtime_error("Unrecognized IntraProcessBufferType value");
+        break;
+      }
+    }
+
   }
 
   std::shared_ptr<rclcpp::Waitable>
@@ -199,109 +247,33 @@ public:
 
   /**
    * Adds a std::shared_ptr<const void> message to the intra-process communication buffer of this Subscription.
-   * The message has to be converted into the QueueT type.
+   * The message has to be converted into the BufferT type.
    * The message has been shared with the Intra Process Manager that does not own it.
    * If the subscription wants ownership it's always necessary to make a copy
    */
   void add_message_to_buffer(std::shared_ptr<const void> shared_msg)
   {
-    add_shared_message_to_buffer_impl<QueueT>(shared_msg);
+    intra_process_buffer->add(shared_msg);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
     (void)ret;
   }
 
   /**
    * Adds a void* message to the intra-process communication buffer of this Subscription.
-   * The message has to be converted into the QueueT type.
+   * The message has to be converted into the BufferT type.
    * The message is owned by the Intra Process Manager that is giving up ownership to the subscription.
    */
   void add_message_to_buffer(void* msg)
   {
-    add_owned_message_to_buffer_impl<QueueT>(msg);
+    intra_process_buffer->add(msg);
     auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
     (void)ret;
   }
 
-  // shared_ptr to ConstMessageSharedPtr
-  template <typename DestinationT>
-  typename std::enable_if<
-  std::is_same<DestinationT, ConstMessageSharedPtr>::value
-  >::type
-  add_shared_message_to_buffer_impl(std::shared_ptr<const void> shared_msg)
-  {
-    auto msg = std::static_pointer_cast<const CallbackMessageT>(shared_msg);
-    typed_queue->add(msg);
-  }
-
-  // shared_ptr to MessageUniquePtr
-  template <typename DestinationT>
-  typename std::enable_if<
-  std::is_same<DestinationT, MessageUniquePtr>::value
-  >::type
-  add_shared_message_to_buffer_impl(std::shared_ptr<const void> shared_msg)
-  {
-    (void)shared_msg;
-    /**
-     * This function should not be used.
-     */
-    throw std::runtime_error("add_shared_message_to_buffer_impl for MessageUniquePtr queue");
-  }
-
-
-  // shared_ptr to CallbackMessageT
-  template <typename DestinationT>
-  typename std::enable_if<
-  !std::is_same<DestinationT, ConstMessageSharedPtr>::value
-  &&
-  !std::is_same<DestinationT, MessageUniquePtr>::value
-  >::type
-  add_shared_message_to_buffer_impl(std::shared_ptr<const void> shared_msg)
-  {
-    auto shared_casted_msg = std::static_pointer_cast<const CallbackMessageT>(shared_msg);
-    CallbackMessageT msg = *shared_casted_msg;
-    typed_queue->add(msg);
-  }
-
-  // void* to ConstMessageSharedPtr
-  template <typename DestinationT>
-  typename std::enable_if<
-  std::is_same<DestinationT, ConstMessageSharedPtr>::value
-  >::type
-  add_owned_message_to_buffer_impl(void* msg)
-  {
-    (void)msg;
-    /**
-     * This function should not be used.
-     */
-    throw std::runtime_error("add_owned_message_to_buffer_impl for ConstMessageSharedPtr queue");
-  }
-
-  // void* to MessageUniquePtr
-  template <typename DestinationT>
-  typename std::enable_if<
-  std::is_same<DestinationT, MessageUniquePtr>::value
-  >::type
-  add_owned_message_to_buffer_impl(void* msg)
-  {
-    MessageUniquePtr unique_msg(static_cast<CallbackMessageT*>(msg));
-    typed_queue->move_in(std::move(unique_msg));
-  }
-
-  // void* to CallbackMessageT
-  template <typename DestinationT>
-  typename std::enable_if<
-  std::is_same<DestinationT, CallbackMessageT>::value
-  >::type
-  add_owned_message_to_buffer_impl(void* msg)
-  {
-    CallbackMessageT* casted_message = static_cast<CallbackMessageT*>(msg);
-    typed_queue->add(*casted_message);
-  }
-
 private:
 
-  std::shared_ptr<ConsumerProducerQueue<QueueT> > typed_queue;
-  std::shared_ptr<IntraProcessSubscriptionWaitable<CallbackMessageT, QueueT, Alloc>> waitable_ptr;
+  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase > intra_process_buffer;
+  std::shared_ptr<IntraProcessSubscriptionWaitableBase> waitable_ptr;
 
   std::shared_ptr<MessageAlloc> message_allocator_;
   MessageDeleter message_deleter_;

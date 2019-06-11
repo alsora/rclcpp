@@ -26,6 +26,7 @@
 #include "rmw/rmw.h"
 
 #include "rclcpp/any_subscription_callback.hpp"
+#include "rclcpp/intra_process_buffer_type.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/qos_event.hpp"
 #include "rclcpp/type_support_decl.hpp"
@@ -158,7 +159,7 @@ public:
     const rcl_subscription_options_t & intra_process_options);
 
   virtual void
-  create_intra_process_tools() = 0;
+  create_intra_process_tools(IntraProcessBufferType buffer_type) = 0;
 
   virtual std::shared_ptr<rclcpp::Waitable>
   get_intra_process_waitable() = 0;

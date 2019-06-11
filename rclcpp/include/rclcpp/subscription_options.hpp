@@ -21,6 +21,7 @@
 
 #include "rclcpp/callback_group.hpp"
 #include "rclcpp/intra_process_setting.hpp"
+#include "rclcpp/intra_process_buffer_type.hpp"
 #include "rclcpp/qos.hpp"
 #include "rclcpp/qos_event.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -39,6 +40,8 @@ struct SubscriptionOptionsBase
   rclcpp::callback_group::CallbackGroup::SharedPtr callback_group = nullptr;
   /// Setting to explicitly set intraprocess communications.
   IntraProcessSetting use_intra_process_comm = IntraProcessSetting::NodeDefault;
+  /// Setting the data-type stored in the intraprocess buffer
+  IntraProcessBufferType intra_process_buffer_type = IntraProcessBufferType::CallbackDefault;
 };
 
 /// Structure containing optional configuration for Subscriptions.

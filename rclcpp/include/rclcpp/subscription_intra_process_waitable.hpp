@@ -45,19 +45,44 @@ class NodeTopicsInterface;
 class NodeWaitablesInterface;
 }  // namespace node_interfaces
 
+
+class IntraProcessSubscriptionWaitableBase : public rclcpp::Waitable
+{
+
+public:
+
+  IntraProcessSubscriptionWaitableBase(){};
+
+  size_t
+  get_number_of_ready_guard_conditions() { return 1;}
+
+  virtual bool
+  add_to_wait_set(rcl_wait_set_t * wait_set) = 0;
+
+  virtual bool
+  is_ready(rcl_wait_set_t * wait_set) = 0;
+
+  virtual void
+  execute() = 0;
+
+  rcl_guard_condition_t gc_;
+
+};
+
+
 /**
  *
  *
  * \typename CallbackMessageT is a raw message type such as sensor_msgs::msg::Image
- * \typename QueueT is the type that is stored in the queue. It can be any of
+ * \typename BufferT is the type that is stored in the buffer. It can be any of
  *  CallbackMessageT, std::shared_ptr<const CallbackMessageT> and std::unique_ptr<CallbackMessageT>
  *
  */
 template<
   typename CallbackMessageT,
-  typename QueueT = std::shared_ptr<const CallbackMessageT>,
+  typename BufferT = std::shared_ptr<const CallbackMessageT>,
   typename Alloc = std::allocator<void>>
-class IntraProcessSubscriptionWaitable : public rclcpp::Waitable
+class IntraProcessSubscriptionWaitable : public IntraProcessSubscriptionWaitableBase
 {
 public:
 
@@ -67,18 +92,18 @@ public:
   using ConstMessageSharedPtr = std::shared_ptr<const CallbackMessageT>;
   using MessageUniquePtr = std::unique_ptr<CallbackMessageT, MessageDeleter>;
 
+  using IntraProcessBufferT =
+    rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>;
+
   std::recursive_mutex reentrant_mutex_;
 
-  rcl_guard_condition_t gc_;
 
-  std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_;
+  std::shared_ptr<IntraProcessBufferT> queue_;
   AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
 
-  IntraProcessSubscriptionWaitable(): rclcpp::Waitable(){}
-
-  void init(
+  IntraProcessSubscriptionWaitable(
     AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
-    std::shared_ptr<ConsumerProducerQueue<QueueT>> queue_ptr)
+    std::shared_ptr<IntraProcessBufferT> queue_ptr)
   {
     any_callback_ = callback_ptr;
     queue_ = queue_ptr;
@@ -98,9 +123,6 @@ public:
     }
   }
 
-size_t
-get_number_of_ready_guard_conditions() { return 1;}
-
 bool
 add_to_wait_set(rcl_wait_set_t * wait_set)
 {
@@ -119,7 +141,7 @@ is_ready(rcl_wait_set_t * wait_set)
 
 void execute()
 {
-  dispatch<QueueT>();
+  dispatch<BufferT>();
 }
 
 template <typename DestinationT>
@@ -127,8 +149,8 @@ typename std::enable_if<
 (std::is_same<DestinationT, MessageUniquePtr>::value)>::type
 dispatch()
 {
-  QueueT queue_msg;
-  queue_->move_out(queue_msg);
+  BufferT queue_msg;
+  queue_->consume(queue_msg);
   any_callback_->dispatch_intra_process(std::move(queue_msg), rmw_message_info_t());
 }
 
@@ -138,7 +160,7 @@ typename std::enable_if<
 (!std::is_same<DestinationT, MessageUniquePtr>::value)>::type
 dispatch()
 {
-  QueueT queue_msg;
+  BufferT queue_msg;
   queue_->consume(queue_msg);
   any_callback_->dispatch_intra_process(queue_msg, rmw_message_info_t());
 }
