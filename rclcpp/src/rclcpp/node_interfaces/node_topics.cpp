@@ -96,14 +96,15 @@ NodeTopics::create_subscription(
   const std::string & topic_name,
   const rclcpp::SubscriptionFactory & subscription_factory,
   const rcl_subscription_options_t & subscription_options,
-  bool use_intra_process)
+  bool use_intra_process,
+  IntraProcessBufferType buffer_type)
 {
   auto subscription = subscription_factory.create_typed_subscription(
     node_base_, topic_name, subscription_options);
 
   // Setup intra process communication if requested.
   if (use_intra_process) {
-    subscription->create_intra_process_tools();
+    subscription->create_intra_process_tools(buffer_type);
     auto context = node_base_->get_context();
     auto ipm =
       context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();

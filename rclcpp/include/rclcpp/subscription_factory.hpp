@@ -68,7 +68,6 @@ struct SubscriptionFactory
 /// Return a SubscriptionFactory with functions for creating a SubscriptionT<MessageT, Alloc>.
 template<
   typename MessageT,
-  typename QueueT,
   typename CallbackT,
   typename Alloc,
   typename CallbackMessageT,
@@ -106,7 +105,7 @@ create_subscription_factory(
       using rclcpp::Subscription;
       using rclcpp::SubscriptionBase;
 
-      auto sub = Subscription<CallbackMessageT, Alloc, QueueT>::make_shared(
+      auto sub = Subscription<CallbackMessageT, Alloc>::make_shared(
         node_base->get_shared_rcl_node_handle(),
         *rosidl_typesupport_cpp::get_message_type_support_handle<MessageT>(),
         topic_name,

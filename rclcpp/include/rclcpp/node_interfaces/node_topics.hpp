@@ -25,6 +25,7 @@
 #include "rclcpp/node_interfaces/node_topics_interface.hpp"
 #include "rclcpp/publisher.hpp"
 #include "rclcpp/publisher_factory.hpp"
+#include "rclcpp/subscription.hpp"
 #include "rclcpp/visibility_control.hpp"
 
 namespace rclcpp
@@ -64,7 +65,8 @@ public:
     const std::string & topic_name,
     const rclcpp::SubscriptionFactory & subscription_factory,
     const rcl_subscription_options_t & subscription_options,
-    bool use_intra_process) override;
+    bool use_intra_process,
+    IntraProcessBufferType buffer_type) override;
 
   RCLCPP_PUBLIC
   void

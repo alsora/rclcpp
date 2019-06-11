@@ -253,39 +253,6 @@ public:
   /// Create and return a Subscription.
   /**
    * \param[in] topic_name The topic to subscribe on.
-   * \param[in] callback The user-defined callback function to receive a message
-   * \param[in] qos_history_depth The depth of the subscription's incoming message queue.
-   * \param[in] options Additional options for the creation of the Subscription.
-   * \param[in] msg_mem_strat The message memory strategy to use for allocating messages.
-   * \return Shared pointer to the created subscription.
-   */
-  /* TODO(jacquelinekay):
-     Windows build breaks when static member function passed as default
-     argument to msg_mem_strat, nullptr is a workaround.
-   */
-
-  template<
-    typename MessageT,
-    typename QueueT,
-    typename CallbackT,
-    typename AllocatorT = std::allocator<void>,
-    typename SubscriptionT = rclcpp::Subscription<
-      typename rclcpp::subscription_traits::has_message_type<CallbackT>::type, AllocatorT, QueueT>>
-  std::shared_ptr<SubscriptionT>
-  create_subscription_with_queue(
-    const std::string & topic_name,
-    const rclcpp::QoS & qos,
-    CallbackT && callback,
-    const SubscriptionOptionsWithAllocator<AllocatorT> & options =
-    SubscriptionOptionsWithAllocator<AllocatorT>(),
-    typename rclcpp::message_memory_strategy::MessageMemoryStrategy<
-      typename rclcpp::subscription_traits::has_message_type<CallbackT>::type, AllocatorT
-    >::SharedPtr
-    msg_mem_strat = nullptr);
-
-  /// Create and return a Subscription.
-  /**
-   * \param[in] topic_name The topic to subscribe on.
    * \param[in] callback The user-defined callback function.
    * \param[in] qos_profile The quality of service profile to pass on to the rmw implementation.
    * \param[in] group The callback group for this subscription. NULL for no callback group.
