@@ -61,7 +61,7 @@ public:
     return mock_topic_name.c_str();
   }
 
-  void setup_intra_process(
+  void set_intra_process_manager(
     uint64_t intra_process_publisher_id,
     IntraProcessManagerSharedPtr ipm)
   {
@@ -172,7 +172,7 @@ public:
     mock_message_ptr = reinterpret_cast<std::uintptr_t>(message_ptr);
   }
 
-  void setup_intra_process(
+  void set_intra_process_manager(
     uint64_t intra_process_publisher_id,
     IntraProcessManagerSharedPtr ipm)
   {
@@ -306,12 +306,12 @@ TEST(TestIntraProcessManager, single_subscription) {
 
   auto p1 = std::make_shared<PublisherT>();
   auto p1_id = ipm->add_publisher(p1, rcl_publisher_options_t());
-  p1->setup_intra_process(p1_id, ipm);
+  p1->set_intra_process_manager(p1_id, ipm);
 
   auto s1 = std::make_shared<SubscriptionT>();
   s1->mock_use_take_shared_method = false;
   auto s1_id = ipm->add_subscription(s1, rcl_subscription_options_t());
-  s1->setup_intra_process(s1_id, ipm);
+  s1->set_intra_process_manager(s1_id, ipm);
 
   auto unique_msg = std::make_unique<MessageT>();
   auto original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -324,7 +324,7 @@ TEST(TestIntraProcessManager, single_subscription) {
   auto s2 = std::make_shared<SubscriptionT>();
   s2->mock_use_take_shared_method = true;
   auto s2_id = ipm->add_subscription(s2, rcl_subscription_options_t());
-  s2->setup_intra_process(s2_id, ipm);
+  s2->set_intra_process_manager(s2_id, ipm);
 
   unique_msg = std::make_unique<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -362,17 +362,17 @@ TEST(TestIntraProcessManager, multiple_subscriptions_same_type) {
 
   auto p1 = std::make_shared<PublisherT>();
   auto p1_id = ipm->add_publisher(p1, rcl_publisher_options_t());
-  p1->setup_intra_process(p1_id, ipm);
+  p1->set_intra_process_manager(p1_id, ipm);
 
   auto s1 = std::make_shared<SubscriptionT>();
   s1->mock_use_take_shared_method = false;
   auto s1_id = ipm->add_subscription(s1, rcl_subscription_options_t());
-  s1->setup_intra_process(s1_id, ipm);
+  s1->set_intra_process_manager(s1_id, ipm);
 
   auto s2 = std::make_shared<SubscriptionT>();
   s2->mock_use_take_shared_method = false;
   auto s2_id = ipm->add_subscription(s2, rcl_subscription_options_t());
-  s2->setup_intra_process(s2_id, ipm);
+  s2->set_intra_process_manager(s2_id, ipm);
 
   auto unique_msg = std::make_unique<MessageT>();
   auto original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -389,12 +389,12 @@ TEST(TestIntraProcessManager, multiple_subscriptions_same_type) {
   auto s3 = std::make_shared<SubscriptionT>();
   s3->mock_use_take_shared_method = true;
   auto s3_id = ipm->add_subscription(s3, rcl_subscription_options_t());
-  s3->setup_intra_process(s3_id, ipm);
+  s3->set_intra_process_manager(s3_id, ipm);
 
   auto s4 = std::make_shared<SubscriptionT>();
   s4->mock_use_take_shared_method = true;
   auto s4_id = ipm->add_subscription(s4, rcl_subscription_options_t());
-  s4->setup_intra_process(s4_id, ipm);
+  s4->set_intra_process_manager(s4_id, ipm);
 
   unique_msg = std::make_unique<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -410,12 +410,12 @@ TEST(TestIntraProcessManager, multiple_subscriptions_same_type) {
   auto s5 = std::make_shared<SubscriptionT>();
   s5->mock_use_take_shared_method = false;
   auto s5_id = ipm->add_subscription(s5, rcl_subscription_options_t());
-  s5->setup_intra_process(s5_id, ipm);
+  s5->set_intra_process_manager(s5_id, ipm);
 
   auto s6 = std::make_shared<SubscriptionT>();
   s6->mock_use_take_shared_method = false;
   auto s6_id = ipm->add_subscription(s6, rcl_subscription_options_t());
-  s6->setup_intra_process(s6_id, ipm);
+  s6->set_intra_process_manager(s6_id, ipm);
 
   auto shared_msg = std::make_shared<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(shared_msg.get());
@@ -431,12 +431,12 @@ TEST(TestIntraProcessManager, multiple_subscriptions_same_type) {
   auto s7 = std::make_shared<SubscriptionT>();
   s7->mock_use_take_shared_method = true;
   auto s7_id = ipm->add_subscription(s7, rcl_subscription_options_t());
-  s7->setup_intra_process(s7_id, ipm);
+  s7->set_intra_process_manager(s7_id, ipm);
 
   auto s8 = std::make_shared<SubscriptionT>();
   s8->mock_use_take_shared_method = true;
   auto s8_id = ipm->add_subscription(s8, rcl_subscription_options_t());
-  s8->setup_intra_process(s8_id, ipm);
+  s8->set_intra_process_manager(s8_id, ipm);
 
   shared_msg = std::make_shared<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(shared_msg.get());
@@ -475,17 +475,17 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
 
   auto p1 = std::make_shared<PublisherT>();
   auto p1_id = ipm->add_publisher(p1, rcl_publisher_options_t());
-  p1->setup_intra_process(p1_id, ipm);
+  p1->set_intra_process_manager(p1_id, ipm);
 
   auto s1 = std::make_shared<SubscriptionT>();
   s1->mock_use_take_shared_method = true;
   auto s1_id = ipm->add_subscription(s1, rcl_subscription_options_t());
-  s1->setup_intra_process(s1_id, ipm);
+  s1->set_intra_process_manager(s1_id, ipm);
 
   auto s2 = std::make_shared<SubscriptionT>();
   s2->mock_use_take_shared_method = false;
   auto s2_id = ipm->add_subscription(s2, rcl_subscription_options_t());
-  s2->setup_intra_process(s2_id, ipm);
+  s2->set_intra_process_manager(s2_id, ipm);
 
   auto unique_msg = std::make_unique<MessageT>();
   auto original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -501,17 +501,17 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   auto s3 = std::make_shared<SubscriptionT>();
   s3->mock_use_take_shared_method = false;
   auto s3_id = ipm->add_subscription(s3, rcl_subscription_options_t());
-  s3->setup_intra_process(s3_id, ipm);
+  s3->set_intra_process_manager(s3_id, ipm);
 
   auto s4 = std::make_shared<SubscriptionT>();
   s4->mock_use_take_shared_method = false;
   auto s4_id = ipm->add_subscription(s4, rcl_subscription_options_t());
-  s4->setup_intra_process(s4_id, ipm);
+  s4->set_intra_process_manager(s4_id, ipm);
 
   auto s5 = std::make_shared<SubscriptionT>();
   s5->mock_use_take_shared_method = true;
   auto s5_id = ipm->add_subscription(s5, rcl_subscription_options_t());
-  s5->setup_intra_process(s5_id, ipm);
+  s5->set_intra_process_manager(s5_id, ipm);
 
   unique_msg = std::make_unique<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -536,22 +536,22 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   auto s6 = std::make_shared<SubscriptionT>();
   s6->mock_use_take_shared_method = true;
   auto s6_id = ipm->add_subscription(s6, rcl_subscription_options_t());
-  s6->setup_intra_process(s6_id, ipm);
+  s6->set_intra_process_manager(s6_id, ipm);
 
   auto s7 = std::make_shared<SubscriptionT>();
   s7->mock_use_take_shared_method = true;
   auto s7_id = ipm->add_subscription(s7, rcl_subscription_options_t());
-  s7->setup_intra_process(s7_id, ipm);
+  s7->set_intra_process_manager(s7_id, ipm);
 
   auto s8 = std::make_shared<SubscriptionT>();
   s8->mock_use_take_shared_method = false;
   auto s8_id = ipm->add_subscription(s8, rcl_subscription_options_t());
-  s8->setup_intra_process(s8_id, ipm);
+  s8->set_intra_process_manager(s8_id, ipm);
 
   auto s9 = std::make_shared<SubscriptionT>();
   s9->mock_use_take_shared_method = false;
   auto s9_id = ipm->add_subscription(s9, rcl_subscription_options_t());
-  s9->setup_intra_process(s9_id, ipm);
+  s9->set_intra_process_manager(s9_id, ipm);
 
   unique_msg = std::make_unique<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(unique_msg.get());
@@ -578,12 +578,12 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   auto s10 = std::make_shared<SubscriptionT>();
   s10->mock_use_take_shared_method = false;
   auto s10_id = ipm->add_subscription(s10, rcl_subscription_options_t());
-  s10->setup_intra_process(s10_id, ipm);
+  s10->set_intra_process_manager(s10_id, ipm);
 
   auto s11 = std::make_shared<SubscriptionT>();
   s11->mock_use_take_shared_method = true;
   auto s11_id = ipm->add_subscription(s11, rcl_subscription_options_t());
-  s11->setup_intra_process(s11_id, ipm);
+  s11->set_intra_process_manager(s11_id, ipm);
 
   auto shared_msg = std::make_shared<MessageT>();
   original_message_pointer = reinterpret_cast<std::uintptr_t>(shared_msg.get());

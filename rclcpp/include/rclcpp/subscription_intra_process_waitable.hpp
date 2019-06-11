@@ -18,6 +18,7 @@
 #include "rcl_interfaces/msg/intra_process_message.hpp"
 
 #include "rclcpp/any_subscription_callback.hpp"
+#include "rclcpp/clock.hpp"
 #include "rclcpp/contexts/default_context.hpp"
 #include "rclcpp/exceptions.hpp"
 #include "rclcpp/expand_topic_or_service_name.hpp"
@@ -27,14 +28,10 @@
 #include "rclcpp/message_memory_strategy.hpp"
 #include "rclcpp/subscription_base.hpp"
 #include "rclcpp/subscription_traits.hpp"
+#include "rclcpp/time.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 #include "rclcpp/waitable.hpp"
-
-#include "rclcpp/clock.hpp"
-#include "rclcpp/time.hpp"
-
-#include "rclcpp/intra_process_setting.hpp"
 
 namespace rclcpp
 {
