@@ -247,16 +247,6 @@ public:
     return const_shared_ptr_callback_ || const_shared_ptr_with_info_callback_;
   }
 
-  std::shared_ptr<MessageAlloc> get_message_allocator()
-  {
-    return message_allocator_;
-  }
-
-  MessageDeleter get_message_deleter()
-  {
-    return message_deleter_;
-  }
-
 private:
   std::shared_ptr<MessageAlloc> message_allocator_;
   MessageDeleter message_deleter_;
