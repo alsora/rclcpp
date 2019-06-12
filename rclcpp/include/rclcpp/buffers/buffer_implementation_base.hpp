@@ -24,6 +24,8 @@ template<typename BufferT>
 class BufferImplementationBase
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS(BufferImplementationBase<BufferT>)
+
   virtual void dequeue(BufferT & request) = 0;
   virtual void enqueue(BufferT request) = 0;
 

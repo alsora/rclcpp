@@ -14,20 +14,19 @@
 
 #include <gmock/gmock.h>
 
+#include <rcl/subscription.h>
+#include <rcl/publisher.h>
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <rcl/subscription.h>
-#include <rcl/publisher.h>
-
 #define RCLCPP_BUILDING_LIBRARY 1
 #include "rclcpp/allocator/allocator_common.hpp"
 #include "rclcpp/macros.hpp"
 #include "rmw/types.h"
-
 
 
 // Mock up publisher and subscription base to avoid needing an rmw impl.
@@ -112,7 +111,7 @@ public:
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
-            "intra process publish called after destruction of intra process manager");
+              "intra process publish called after destruction of intra process manager");
     }
     if (!msg) {
       throw std::runtime_error("cannot publish msg which is a null pointer");
@@ -128,7 +127,7 @@ public:
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
-            "intra process publish called after destruction of intra process manager");
+              "intra process publish called after destruction of intra process manager");
     }
     if (!msg) {
       throw std::runtime_error("cannot publish msg which is a null pointer");

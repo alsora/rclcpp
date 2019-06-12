@@ -260,5 +260,4 @@ PublisherBase::setup_intra_process(
   intra_process_publisher_id_ = intra_process_publisher_id;
   weak_ipm_ = ipm;
   intra_process_is_enabled_ = true;
-
 }
