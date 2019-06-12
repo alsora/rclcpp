@@ -105,10 +105,6 @@ NodeTopics::create_subscription(
   // Setup intra process communication if requested.
   if (use_intra_process) {
     subscription->setup_intra_process(buffer_type, subscription_options);
-    auto waitable = std::make_shared<IntraProcessSubscriptionWaitable>(
-      subscription,
-      subscription->get_intra_process_buffer());
-    subscription->set_intra_process_waitable(waitable);
     auto context = node_base_->get_context();
     auto ipm =
       context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();

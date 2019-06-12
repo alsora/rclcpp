@@ -166,20 +166,8 @@ void SubscriptionBase::set_intra_process_manager(
   use_intra_process_ = true;
 }
 
-std::shared_ptr<rclcpp::Waitable>
-SubscriptionBase::get_intra_process_waitable()
+std::shared_ptr<rclcpp::SubscriptionIntraProcessBase>
+SubscriptionBase::get_subscription_intra_process()
 {
-  return waitable_ptr;
-}
-
-void
-SubscriptionBase::set_intra_process_waitable(std::shared_ptr<rclcpp::Waitable> waitable)
-{
-  waitable_ptr = waitable;
-}
-
-std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase>
-SubscriptionBase::get_intra_process_buffer()
-{
-  return intra_process_buffer;
+  return subscription_intra_process_;
 }

@@ -184,7 +184,11 @@ public:
           auto typed_buffer =
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
-          intra_process_buffer = typed_buffer;
+
+          // construct the subscription_intra_process
+          subscription_intra_process_ =
+            std::make_shared<SubscriptionIntraProcess<CallbackMessageT, Alloc>>(
+            &any_callback_, typed_buffer);
 
           break;
         }
@@ -199,7 +203,11 @@ public:
           auto typed_buffer =
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
-          intra_process_buffer = typed_buffer;
+
+          // construct the subscription_intra_process
+          subscription_intra_process_ =
+            std::make_shared<SubscriptionIntraProcess<CallbackMessageT, Alloc>>(
+            &any_callback_, typed_buffer);
 
           break;
         }
@@ -214,7 +222,11 @@ public:
           auto typed_buffer =
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
-          intra_process_buffer = typed_buffer;
+
+          // construct the subscription_intra_process
+          subscription_intra_process_ =
+            std::make_shared<SubscriptionIntraProcess<CallbackMessageT, Alloc>>(
+            &any_callback_, typed_buffer);
 
           break;
         }
@@ -236,26 +248,6 @@ public:
   use_take_shared_method()
   {
     return any_callback_.use_take_shared_method();
-  }
-
-  void
-  execute_intra_process_subscription()
-  {
-    using IntraProcessBufferT =
-      typename rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT>;
-
-    std::shared_ptr<IntraProcessBufferT> buffer =
-      std::static_pointer_cast<IntraProcessBufferT>(intra_process_buffer);
-
-    if (use_take_shared_method()) {
-      ConstMessageSharedPtr msg;
-      buffer->consume(msg);
-      any_callback_.dispatch_intra_process(msg, rmw_message_info_t());
-    } else {
-      MessageUniquePtr msg;
-      buffer->consume(msg);
-      any_callback_.dispatch_intra_process(std::move(msg), rmw_message_info_t());
-    }
   }
 private:
   bool
