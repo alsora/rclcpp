@@ -29,8 +29,6 @@ namespace intra_process_buffer
 class IntraProcessBufferBase
 {
 public:
-  //RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBufferBase)
-
   virtual void add(std::shared_ptr<const void> shared_msg) = 0;
   virtual void add(void * msg) = 0;
 
@@ -44,11 +42,7 @@ template<
   typename BufferT = MessageT>
 class IntraProcessBuffer : public IntraProcessBufferBase
 {
-  std::shared_ptr<BufferImplementationBase<BufferT>> buffer_;
-  //BufferImplementationBase<BufferT>::SharedPtr buffer_;
-
 public:
-  //RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBuffer<MessageT, BufferT>)
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT>;
 
@@ -100,6 +94,9 @@ public:
   }
 
 private:
+
+  std::shared_ptr<BufferImplementationBase<BufferT>> buffer_;
+
   // shared_ptr to ConstMessageSharedPtr
   template<typename DestinationT>
   typename std::enable_if<

@@ -109,7 +109,7 @@ NodeTopics::create_subscription(
     auto ipm =
       context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
     uint64_t intra_process_subscription_id = ipm->add_subscription(subscription,
-      subscription_options);
+        subscription_options);
     subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
   }
 

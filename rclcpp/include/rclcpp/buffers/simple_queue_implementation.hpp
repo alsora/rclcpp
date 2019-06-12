@@ -36,8 +36,7 @@ class SimpleQueueImplementation : public BufferImplementationBase<BufferT>
   std::queue<BufferT> queue_;
 
 public:
-  explicit
-  SimpleQueueImplementation(size_t max_size)
+  explicit SimpleQueueImplementation(size_t max_size)
   : max_size_(max_size) {}
 
   void enqueue(BufferT request)

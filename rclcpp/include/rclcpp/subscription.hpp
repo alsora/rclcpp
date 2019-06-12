@@ -190,8 +190,8 @@ public:
 
           // construct the waitable
           waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>
-            (&any_callback_, typed_buffer);
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>(
+            &any_callback_, typed_buffer);
 
           break;
         }
@@ -238,7 +238,7 @@ public:
       case IntraProcessBufferType::CallbackDefault:
         {
           throw std::runtime_error(
-              "IntraProcessBufferType::CallbackDefault should have been overwritten");
+                  "IntraProcessBufferType::CallbackDefault should have been overwritten");
           break;
         }
       default:
