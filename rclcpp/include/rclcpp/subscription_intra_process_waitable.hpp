@@ -34,8 +34,6 @@
 #include "rclcpp/clock.hpp"
 #include "rclcpp/contexts/default_context.hpp"
 #include "rclcpp/exceptions.hpp"
-#include "rclcpp/expand_topic_or_service_name.hpp"
-#include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
@@ -80,35 +78,35 @@ public:
 /**
  *
  *
- * \typename CallbackMessageT is a raw message type such as sensor_msgs::msg::Image
+ * \typename MessageT is a raw message type such as sensor_msgs::msg::Image
  * \typename BufferT is the type that is stored in the buffer. It can be any of
- *  CallbackMessageT, std::shared_ptr<const CallbackMessageT> and std::unique_ptr<CallbackMessageT>
+ *  MessageT, std::shared_ptr<const MessageT> and std::unique_ptr<MessageT>
  *
  */
 template<
-  typename CallbackMessageT,
-  typename BufferT = std::shared_ptr<const CallbackMessageT>,
-  typename Alloc = std::allocator<void>>
+  typename MessageT,
+  typename Alloc,
+  typename BufferT>
 class IntraProcessSubscriptionWaitable : public IntraProcessSubscriptionWaitableBase
 {
 public:
-  using MessageAllocTraits = allocator::AllocRebind<CallbackMessageT, Alloc>;
+  using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
   using MessageAlloc = typename MessageAllocTraits::allocator_type;
-  using MessageDeleter = allocator::Deleter<MessageAlloc, CallbackMessageT>;
-  using ConstMessageSharedPtr = std::shared_ptr<const CallbackMessageT>;
-  using MessageUniquePtr = std::unique_ptr<CallbackMessageT, MessageDeleter>;
+  using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
+  using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
+  using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
   using IntraProcessBufferT =
-    rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT, BufferT>;
+    rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT, BufferT>;
 
   std::recursive_mutex reentrant_mutex_;
 
 
   std::shared_ptr<IntraProcessBufferT> queue_;
-  AnySubscriptionCallback<CallbackMessageT, Alloc> * any_callback_;
+  AnySubscriptionCallback<MessageT, Alloc> * any_callback_;
 
   IntraProcessSubscriptionWaitable(
-    AnySubscriptionCallback<CallbackMessageT, Alloc> * callback_ptr,
+    AnySubscriptionCallback<MessageT, Alloc> * callback_ptr,
     std::shared_ptr<IntraProcessBufferT> queue_ptr)
   {
     any_callback_ = callback_ptr;

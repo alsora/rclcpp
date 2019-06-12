@@ -247,7 +247,7 @@ public:
       take_owned_subscription_ids,
       intra_process_publisher_id);
 
-    this->add_shared_msg_to_buffers(message, take_shared_subscription_ids);
+    this->template add_shared_msg_to_buffers<MessageT>(message, take_shared_subscription_ids);
 
     if (take_owned_subscription_ids.size() > 0) {
       auto unique_msg = std::make_unique<MessageT>(*message);
@@ -274,9 +274,9 @@ public:
       intra_process_publisher_id);
 
     if (take_owned_subscription_ids.size() == 0) {
-      std::shared_ptr<void> msg = std::move(message);
+      std::shared_ptr<MessageT> msg = std::move(message);
 
-      this->add_shared_msg_to_buffers(msg, take_shared_subscription_ids);
+      this->template add_shared_msg_to_buffers<MessageT>(msg, take_shared_subscription_ids);
     } else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() <= 1) {
       // merge the two vector of ids into a unique one
       take_owned_subscription_ids.insert(
@@ -286,9 +286,9 @@ public:
         std::move(message),
         take_owned_subscription_ids);
     } else if (take_owned_subscription_ids.size() > 0 && take_shared_subscription_ids.size() > 1) {
-      std::shared_ptr<void> shared_msg = std::make_shared<MessageT>(*message);
+      std::shared_ptr<MessageT> shared_msg = std::make_shared<MessageT>(*message);
 
-      this->add_shared_msg_to_buffers(shared_msg, take_shared_subscription_ids);
+      this->template add_shared_msg_to_buffers<MessageT>(shared_msg, take_shared_subscription_ids);
       this->template add_owned_msg_to_buffers<MessageT, Deleter>(
         std::move(message),
         take_owned_subscription_ids);
@@ -310,18 +310,28 @@ private:
   static uint64_t
   get_next_unique_id();
 
+  template<typename MessageT>
   void
   add_shared_msg_to_buffers(
-    std::shared_ptr<const void> message,
+    std::shared_ptr<const MessageT> message,
     std::set<uint64_t> subscription_ids)
   {
+    using BufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
+
     for (auto id : subscription_ids) {
       auto weak_subscription = impl_->get_subscription(id);
       auto subscription = weak_subscription.lock();
       if (!subscription) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
-      subscription->add_message_to_buffer(message);
+
+      auto buffer_base = subscription->get_intra_process_buffer();
+      std::shared_ptr<BufferT> buffer = std::static_pointer_cast<BufferT>(buffer_base);
+
+      buffer->add(message);
+
+      auto waitable_base = subscription->get_intra_process_waitable();
+      rcl_trigger_guard_condition(&waitable_base->gc_);
     }
   }
 
@@ -333,6 +343,8 @@ private:
     std::unique_ptr<MessageT, Deleter> message,
     std::set<uint64_t> subscription_ids)
   {
+    using BufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
+
     for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
       auto weak_subscription = impl_->get_subscription(*it);
       auto subscription = weak_subscription.lock();
@@ -340,14 +352,20 @@ private:
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
+      auto buffer_base = subscription->get_intra_process_buffer();
+      std::shared_ptr<BufferT> buffer = std::static_pointer_cast<BufferT>(buffer_base);
+
       if (std::next(it) == subscription_ids.end()) {
         // If this is the last subscription, give up ownership
-        subscription->add_message_to_buffer(message.release());
+        buffer->add(std::move(message));
       } else {
         // Copy the message since we have additional subscriptions to serve
-        MessageT * copy_message = new MessageT(*message);
-        subscription->add_message_to_buffer(copy_message);
+        std::unique_ptr<MessageT, Deleter> copy_message = std::make_unique<MessageT>(*message);
+        buffer->add(std::move(copy_message));
       }
+
+      auto waitable_base = subscription->get_intra_process_waitable();
+      rcl_trigger_guard_condition(&waitable_base->gc_);
     }
   }
 

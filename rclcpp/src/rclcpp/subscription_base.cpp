@@ -165,3 +165,16 @@ void SubscriptionBase::set_intra_process_manager(
   weak_ipm_ = weak_ipm;
   use_intra_process_ = true;
 }
+
+
+std::shared_ptr<rclcpp::IntraProcessSubscriptionWaitableBase>
+SubscriptionBase::get_intra_process_waitable()
+{
+  return waitable_ptr;
+}
+
+std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase>
+SubscriptionBase::get_intra_process_buffer()
+{
+  return intra_process_buffer;
+}
