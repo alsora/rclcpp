@@ -28,7 +28,9 @@ namespace intra_process_buffer
 
 class IntraProcessBufferBase
 {
-
+public:
+  virtual bool has_data() const = 0;
+  virtual void clear() = 0;
 };
 
 template<typename MessageT>
@@ -45,9 +47,6 @@ public:
   virtual void consume(MessageT & msg) = 0;
   virtual void consume(ConstMessageSharedPtr & msg) = 0;
   virtual void consume(MessageUniquePtr & msg) = 0;
-
-  virtual bool has_data() const = 0;
-  virtual void clear() = 0;
 };
 
 template<

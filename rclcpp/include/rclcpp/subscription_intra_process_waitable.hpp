@@ -71,47 +71,29 @@ public:
   virtual void
   execute() = 0;
 
+  void
+  trigger_guard_condition()
+  {
+    rcl_trigger_guard_condition(&gc_);
+  }
+
+
   rcl_guard_condition_t gc_;
 };
 
-
-/**
- *
- *
- * \typename MessageT is a raw message type such as sensor_msgs::msg::Image
- * \typename BufferT is the type that is stored in the buffer. It can be any of
- *  MessageT, std::shared_ptr<const MessageT> and std::unique_ptr<MessageT>
- *
- */
-template<
-  typename MessageT,
-  typename Alloc,
-  typename BufferT>
 class IntraProcessSubscriptionWaitable : public IntraProcessSubscriptionWaitableBase
 {
 public:
-  using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
-  using MessageAlloc = typename MessageAllocTraits::allocator_type;
-  using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
-  using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
-  using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
-
-  using IntraProcessBufferT =
-    rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT, BufferT>;
 
   std::recursive_mutex reentrant_mutex_;
-
-
-  std::shared_ptr<IntraProcessBufferT> queue_;
-  AnySubscriptionCallback<MessageT, Alloc> * any_callback_;
+  SubscriptionBase::WeakPtr sub_;
+  std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer_;
 
   IntraProcessSubscriptionWaitable(
-    AnySubscriptionCallback<MessageT, Alloc> * callback_ptr,
-    std::shared_ptr<IntraProcessBufferT> queue_ptr)
+    SubscriptionBase::WeakPtr subscription,
+    std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer)
+  : sub_(subscription), buffer_(buffer)
   {
-    any_callback_ = callback_ptr;
-    queue_ = queue_ptr;
-
     std::shared_ptr<rclcpp::Context> context_ptr =
       rclcpp::contexts::default_context::get_global_default_context();
 
@@ -140,33 +122,17 @@ public:
   is_ready(rcl_wait_set_t * wait_set)
   {
     (void)wait_set;
-    return queue_->has_data();
+    return buffer_->has_data();
   }
 
   void execute()
   {
-    dispatch<BufferT>();
-  }
+    auto subscription = sub_.lock();
+    if (!subscription) {
+      throw std::runtime_error("subscription has unexpectedly gone out of scope");
+    }
 
-  template<typename DestinationT>
-  typename std::enable_if<
-    (std::is_same<DestinationT, MessageUniquePtr>::value)>::type
-  dispatch()
-  {
-    BufferT queue_msg;
-    queue_->consume(queue_msg);
-    any_callback_->dispatch_intra_process(std::move(queue_msg), rmw_message_info_t());
-  }
-
-  // This implementation works for both shared_ptr<MessageT> and MessageT
-  template<typename DestinationT>
-  typename std::enable_if<
-    (!std::is_same<DestinationT, MessageUniquePtr>::value)>::type
-  dispatch()
-  {
-    BufferT queue_msg;
-    queue_->consume(queue_msg);
-    any_callback_->dispatch_intra_process(queue_msg, rmw_message_info_t());
+    subscription->execute_intra_process_subscription();
   }
 };
 }  // namespace rclcpp
