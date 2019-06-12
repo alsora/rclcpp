@@ -21,8 +21,6 @@
 
 #include "rcl/subscription.h"
 
-#include "rcl_interfaces/msg/intra_process_message.hpp"
-
 #include "rmw/rmw.h"
 
 #include "rclcpp/any_subscription_callback.hpp"
@@ -30,6 +28,7 @@
 #include "rclcpp/intra_process_buffer_type.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/qos_event.hpp"
+#include "rclcpp/subscription_intra_process.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
 
@@ -153,9 +152,6 @@ public:
   using IntraProcessManagerWeakPtr =
     std::weak_ptr<rclcpp::intra_process_manager::IntraProcessManager>;
 
-  virtual void
-  execute_intra_process_subscription() = 0;
-
   /// Implemenation detail.
   virtual void
   setup_intra_process(
@@ -166,18 +162,11 @@ public:
     uint64_t intra_process_subscription_id,
     IntraProcessManagerWeakPtr weak_ipm);
 
-  std::shared_ptr<rclcpp::Waitable>
-  get_intra_process_waitable();
-
-  void
-  set_intra_process_waitable(std::shared_ptr<rclcpp::Waitable> waitable);
-
-  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase>
-  get_intra_process_buffer();
+  std::shared_ptr<SubscriptionIntraProcessBase>
+  get_subscription_intra_process();
 
   virtual bool
   use_take_shared_method() = 0;
-
 
 protected:
   template<typename EventCallbackT>
@@ -199,8 +188,7 @@ protected:
 
   std::vector<std::shared_ptr<rclcpp::QOSEventHandlerBase>> event_handlers_;
 
-  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase> intra_process_buffer;
-  std::shared_ptr<rclcpp::Waitable> waitable_ptr;
+  std::shared_ptr<SubscriptionIntraProcessBase> subscription_intra_process_;
 
   bool use_intra_process_;
   IntraProcessManagerWeakPtr weak_ipm_;

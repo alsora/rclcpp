@@ -146,9 +146,9 @@ Node::create_subscription(
       break;
   }
   if (use_intra_process) {
-    std::shared_ptr<rclcpp::Waitable> waitable_ptr =
-      sub->get_intra_process_waitable();
-    this->get_node_waitables_interface()->add_waitable(waitable_ptr, nullptr);
+    std::shared_ptr<rclcpp::Waitable> subscription_intra_process =
+      sub->get_subscription_intra_process();
+    this->get_node_waitables_interface()->add_waitable(subscription_intra_process, nullptr);
   }
 
   return sub;

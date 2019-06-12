@@ -33,7 +33,7 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp/publisher_base.hpp"
 #include "rclcpp/subscription_base.hpp"
-#include "rclcpp/subscription_intra_process_waitable.hpp"
+#include "rclcpp/subscription_intra_process.hpp"
 #include "rclcpp/visibility_control.hpp"
 
 namespace rclcpp
@@ -326,14 +326,12 @@ private:
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      auto buffer_base = subscription->get_intra_process_buffer();
+      auto waitable = subscription->get_subscription_intra_process();
+      auto buffer_base = waitable->get_intra_process_buffer();
       std::shared_ptr<IntraProcessBufferT> buffer =
         std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
 
       buffer->add(message);
-
-      auto waitable_base = subscription->get_intra_process_waitable();
-      auto waitable = std::static_pointer_cast<IntraProcessSubscriptionWaitable>(waitable_base);
       waitable->trigger_guard_condition();
     }
   }
@@ -355,7 +353,8 @@ private:
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      auto buffer_base = subscription->get_intra_process_buffer();
+      auto waitable = subscription->get_subscription_intra_process();
+      auto buffer_base = waitable->get_intra_process_buffer();
       std::shared_ptr<IntraProcessBufferT> buffer = std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
 
       if (std::next(it) == subscription_ids.end()) {
@@ -366,9 +365,6 @@ private:
         std::unique_ptr<MessageT, Deleter> copy_message = std::make_unique<MessageT>(*message);
         buffer->add(std::move(copy_message));
       }
-
-      auto waitable_base = subscription->get_intra_process_waitable();
-      auto waitable = std::static_pointer_cast<IntraProcessSubscriptionWaitable>(waitable_base);
       waitable->trigger_guard_condition();
     }
   }

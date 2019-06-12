@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RCLCPP__SUBSCRIPTION_INTRA_PROCESS_WAITABLE_HPP_
-#define RCLCPP__SUBSCRIPTION_INTRA_PROCESS_WAITABLE_HPP_
+#ifndef RCLCPP__SUBSCRIPTION_INTRA_PROCESS_HPP_
+#define RCLCPP__SUBSCRIPTION_INTRA_PROCESS_HPP_
 
 #include <rmw/error_handling.h>
 #include <rmw/rmw.h>
@@ -28,16 +28,14 @@
 #include "rcl/error_handling.h"
 #include "rcl/subscription.h"
 
-#include "rcl_interfaces/msg/intra_process_message.hpp"
-
 #include "rclcpp/any_subscription_callback.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/contexts/default_context.hpp"
 #include "rclcpp/exceptions.hpp"
+#include "rclcpp/intra_process_buffer.hpp"
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
-#include "rclcpp/subscription_base.hpp"
 #include "rclcpp/subscription_traits.hpp"
 #include "rclcpp/time.hpp"
 #include "rclcpp/type_support_decl.hpp"
@@ -54,10 +52,10 @@ class NodeWaitablesInterface;
 }  // namespace node_interfaces
 
 
-class IntraProcessSubscriptionWaitableBase : public rclcpp::Waitable
+class SubscriptionIntraProcessBase : public rclcpp::Waitable
 {
 public:
-  IntraProcessSubscriptionWaitableBase() {}
+  SubscriptionIntraProcessBase() {}
 
   size_t
   get_number_of_ready_guard_conditions() {return 1;}
@@ -71,28 +69,30 @@ public:
   virtual void
   execute() = 0;
 
-  void
-  trigger_guard_condition()
-  {
-    rcl_trigger_guard_condition(&gc_);
-  }
+  virtual void
+  trigger_guard_condition() = 0;
 
-
-  rcl_guard_condition_t gc_;
+  virtual std::shared_ptr<intra_process_buffer::IntraProcessBufferBase>
+  get_intra_process_buffer() = 0;
 };
 
-class IntraProcessSubscriptionWaitable : public IntraProcessSubscriptionWaitableBase
+
+template<
+  typename MessageT,
+  typename Alloc>
+class SubscriptionIntraProcess : public SubscriptionIntraProcessBase
 {
 public:
+  using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
+  using MessageAlloc = typename MessageAllocTraits::allocator_type;
+  using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
+  using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
+  using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
-  std::recursive_mutex reentrant_mutex_;
-  SubscriptionBase::WeakPtr sub_;
-  std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer_;
-
-  IntraProcessSubscriptionWaitable(
-    SubscriptionBase::WeakPtr subscription,
-    std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer)
-  : sub_(subscription), buffer_(buffer)
+  SubscriptionIntraProcess(
+    AnySubscriptionCallback<MessageT, Alloc> * callback_ptr,
+    std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer)
+  : any_callback_(callback_ptr), buffer_(buffer)
   {
     std::shared_ptr<rclcpp::Context> context_ptr =
       rclcpp::contexts::default_context::get_global_default_context();
@@ -127,14 +127,37 @@ public:
 
   void execute()
   {
-    auto subscription = sub_.lock();
-    if (!subscription) {
-      throw std::runtime_error("subscription has unexpectedly gone out of scope");
+    if (any_callback_->use_take_shared_method()) {
+      ConstMessageSharedPtr msg;
+      buffer_->consume(msg);
+      any_callback_->dispatch_intra_process(msg, rmw_message_info_t());
+    } else {
+      MessageUniquePtr msg;
+      buffer_->consume(msg);
+      any_callback_->dispatch_intra_process(std::move(msg), rmw_message_info_t());
     }
-
-    subscription->execute_intra_process_subscription();
   }
+
+  void
+  trigger_guard_condition()
+  {
+    rcl_ret_t ret = rcl_trigger_guard_condition(&gc_);
+    (void)ret;
+  }
+
+  std::shared_ptr<intra_process_buffer::IntraProcessBufferBase>
+  get_intra_process_buffer()
+  {
+    return buffer_;
+  }
+
+private:
+  std::recursive_mutex reentrant_mutex_;
+  rcl_guard_condition_t gc_;
+
+  AnySubscriptionCallback<MessageT, Alloc> * any_callback_;
+  std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer_;
 };
 }  // namespace rclcpp
 
-#endif  // RCLCPP__SUBSCRIPTION_INTRA_PROCESS_WAITABLE_HPP_
+#endif  // RCLCPP__SUBSCRIPTION_INTRA_PROCESS_HPP_
