@@ -186,11 +186,6 @@ public:
               BufferT>>(buffer_implementation);
           intra_process_buffer = typed_buffer;
 
-          // construct the waitable
-          waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, Alloc, BufferT>>(
-            &any_callback_, typed_buffer);
-
           break;
         }
       case IntraProcessBufferType::UniquePtr:
@@ -206,11 +201,6 @@ public:
               BufferT>>(buffer_implementation);
           intra_process_buffer = typed_buffer;
 
-          // construct the waitable
-          waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, Alloc, BufferT>>(
-            &any_callback_, typed_buffer);
-
           break;
         }
       case IntraProcessBufferType::MessageT:
@@ -225,11 +215,6 @@ public:
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
           intra_process_buffer = typed_buffer;
-
-          // construct the waitable
-          waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, Alloc, BufferT>>(
-            &any_callback_, typed_buffer);
 
           break;
         }
@@ -253,6 +238,25 @@ public:
     return any_callback_.use_take_shared_method();
   }
 
+  void
+  execute_intra_process_subscription()
+  {
+    using IntraProcessBufferT =
+      typename rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT>;
+
+    std::shared_ptr<IntraProcessBufferT> buffer =
+      std::static_pointer_cast<IntraProcessBufferT>(intra_process_buffer);
+
+    if (use_take_shared_method()) {
+      ConstMessageSharedPtr msg;
+      buffer->consume(msg);
+      any_callback_.dispatch_intra_process(msg, rmw_message_info_t());
+    } else {
+      MessageUniquePtr msg;
+      buffer->consume(msg);
+      any_callback_.dispatch_intra_process(std::move(msg), rmw_message_info_t());
+    }
+  }
 private:
   bool
   matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)

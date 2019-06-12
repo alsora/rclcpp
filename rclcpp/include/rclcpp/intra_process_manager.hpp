@@ -33,6 +33,7 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp/publisher_base.hpp"
 #include "rclcpp/subscription_base.hpp"
+#include "rclcpp/subscription_intra_process_waitable.hpp"
 #include "rclcpp/visibility_control.hpp"
 
 namespace rclcpp
@@ -316,7 +317,7 @@ private:
     std::shared_ptr<const MessageT> message,
     std::set<uint64_t> subscription_ids)
   {
-    using BufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
+    using IntraProcessBufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
 
     for (auto id : subscription_ids) {
       auto weak_subscription = impl_->get_subscription(id);
@@ -326,12 +327,14 @@ private:
       }
 
       auto buffer_base = subscription->get_intra_process_buffer();
-      std::shared_ptr<BufferT> buffer = std::static_pointer_cast<BufferT>(buffer_base);
+      std::shared_ptr<IntraProcessBufferT> buffer =
+        std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
 
       buffer->add(message);
 
       auto waitable_base = subscription->get_intra_process_waitable();
-      rcl_trigger_guard_condition(&waitable_base->gc_);
+      auto waitable = std::static_pointer_cast<IntraProcessSubscriptionWaitable>(waitable_base);
+      waitable->trigger_guard_condition();
     }
   }
 
@@ -343,7 +346,7 @@ private:
     std::unique_ptr<MessageT, Deleter> message,
     std::set<uint64_t> subscription_ids)
   {
-    using BufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
+    using IntraProcessBufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
 
     for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
       auto weak_subscription = impl_->get_subscription(*it);
@@ -353,7 +356,7 @@ private:
       }
 
       auto buffer_base = subscription->get_intra_process_buffer();
-      std::shared_ptr<BufferT> buffer = std::static_pointer_cast<BufferT>(buffer_base);
+      std::shared_ptr<IntraProcessBufferT> buffer = std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
 
       if (std::next(it) == subscription_ids.end()) {
         // If this is the last subscription, give up ownership
@@ -365,7 +368,8 @@ private:
       }
 
       auto waitable_base = subscription->get_intra_process_waitable();
-      rcl_trigger_guard_condition(&waitable_base->gc_);
+      auto waitable = std::static_pointer_cast<IntraProcessSubscriptionWaitable>(waitable_base);
+      waitable->trigger_guard_condition();
     }
   }
 
