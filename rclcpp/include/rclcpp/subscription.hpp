@@ -39,9 +39,7 @@
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
-#include "rclcpp/intra_process_buffer.hpp"
 #include "rclcpp/subscription_base.hpp"
-#include "rclcpp/subscription_intra_process_waitable.hpp"
 #include "rclcpp/subscription_traits.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -184,13 +182,13 @@ public:
 
           // construct the intra_process_buffer
           auto typed_buffer =
-            std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT,
+            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
           intra_process_buffer = typed_buffer;
 
           // construct the waitable
           waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>(
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, Alloc, BufferT>>(
             &any_callback_, typed_buffer);
 
           break;
@@ -204,13 +202,13 @@ public:
 
           // construct the intra_process_buffer
           auto typed_buffer =
-            std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT,
+            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
           intra_process_buffer = typed_buffer;
 
           // construct the waitable
           waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>(
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, Alloc, BufferT>>(
             &any_callback_, typed_buffer);
 
           break;
@@ -224,13 +222,13 @@ public:
 
           // construct the intra_process_buffer
           auto typed_buffer =
-            std::make_shared<rclcpp::intra_process_buffer::IntraProcessBuffer<CallbackMessageT,
+            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
               BufferT>>(buffer_implementation);
           intra_process_buffer = typed_buffer;
 
           // construct the waitable
           waitable_ptr =
-            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, BufferT, Alloc>>(
+            std::make_shared<IntraProcessSubscriptionWaitable<CallbackMessageT, Alloc, BufferT>>(
             &any_callback_, typed_buffer);
 
           break;
@@ -249,51 +247,13 @@ public:
     }
   }
 
-  std::shared_ptr<rclcpp::Waitable>
-  get_intra_process_waitable()
-  {
-    return waitable_ptr;
-  }
-
   bool
   use_take_shared_method()
   {
     return any_callback_.use_take_shared_method();
   }
 
-  /**
-   * Adds a std::shared_ptr<const void> message to the
-   * intra-process communication buffer of this Subscription.
-   * The message has to be converted into the BufferT type.
-   * The message has been shared with the Intra Process Manager that does not own it.
-   * If the subscription wants ownership it's always necessary to make a copy
-   */
-  void add_message_to_buffer(std::shared_ptr<const void> shared_msg)
-  {
-    intra_process_buffer->add(shared_msg);
-    auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
-    (void)ret;
-  }
-
-  /**
-   * Adds a void* message to the intra-process communication buffer of this Subscription.
-   * The message has to be converted into the BufferT type.
-   * The message is owned by the Intra Process Manager that is giving up ownership to the subscription.
-   */
-  void add_message_to_buffer(void * msg)
-  {
-    intra_process_buffer->add(msg);
-    auto ret = rcl_trigger_guard_condition(&waitable_ptr->gc_);
-    (void)ret;
-  }
-
 private:
-  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase> intra_process_buffer;
-  std::shared_ptr<IntraProcessSubscriptionWaitableBase> waitable_ptr;
-
-  std::shared_ptr<MessageAlloc> message_allocator_;
-  MessageDeleter message_deleter_;
-
   bool
   matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)
   {
