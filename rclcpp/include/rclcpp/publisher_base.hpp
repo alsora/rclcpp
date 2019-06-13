@@ -28,6 +28,7 @@
 #include "rcl/publisher.h"
 
 #include "rclcpp/macros.hpp"
+#include "rclcpp/publisher_intra_process_buffer.hpp"
 #include "rclcpp/qos_event.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -181,13 +182,21 @@ public:
   using IntraProcessManagerSharedPtr =
     std::shared_ptr<rclcpp::intra_process_manager::IntraProcessManager>;
 
+  RCLCPP_PUBLIC
+  virtual void
+  setup_intra_process(
+    const rcl_publisher_options_t & intra_process_options) = 0;
+
   /// Implementation utility function used to setup intra process publishing after creation.
   RCLCPP_PUBLIC
   void
-  setup_intra_process(
+  set_intra_process_manager(
     uint64_t intra_process_publisher_id,
-    IntraProcessManagerSharedPtr ipm,
-    const rcl_publisher_options_t & intra_process_options);
+    IntraProcessManagerSharedPtr ipm);
+
+  RCLCPP_PUBLIC
+  std::shared_ptr<PublisherIntraProcessBufferBase>
+  get_intra_process_buffer();
 
 protected:
   template<typename EventCallbackT>
@@ -212,6 +221,8 @@ protected:
 
   using IntraProcessManagerWeakPtr =
     std::weak_ptr<rclcpp::intra_process_manager::IntraProcessManager>;
+
+  std::shared_ptr<PublisherIntraProcessBufferBase> intra_process_buffer_;
 
   bool always_publish_inter_process_;
   bool intra_process_is_enabled_;

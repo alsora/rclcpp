@@ -75,6 +75,7 @@ public:
   void
   add_subscription(
     rclcpp::SubscriptionBase::SharedPtr subscription,
+    bool use_intra_process,
     rclcpp::callback_group::CallbackGroup::SharedPtr callback_group) = 0;
 
   RCLCPP_PUBLIC

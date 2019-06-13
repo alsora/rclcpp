@@ -55,7 +55,7 @@ public:
   add_subscription(
     uint64_t id,
     SubscriptionBase::SharedPtr subscription,
-    rcl_subscription_options_t options) = 0;
+    rmw_qos_profile_t options) = 0;
 
   virtual void
   remove_subscription(uint64_t intra_process_subscription_id) = 0;
@@ -63,7 +63,7 @@ public:
   virtual void add_publisher(
     uint64_t id,
     PublisherBase::SharedPtr publisher,
-    rcl_publisher_options_t options) = 0;
+    rmw_qos_profile_t options) = 0;
 
   virtual void
   remove_publisher(uint64_t intra_process_publisher_id) = 0;
@@ -83,6 +83,9 @@ public:
   virtual SubscriptionIntraProcessBase::WeakPtr
   get_subscription(uint64_t intra_process_subscription_id) = 0;
 
+  virtual PublisherBase::WeakPtr
+  get_publisher(uint64_t intra_process_publisher_id) = 0;
+
 private:
   RCLCPP_DISABLE_COPY(IntraProcessManagerImplBase)
 };
@@ -98,7 +101,7 @@ private:
     SubscriptionInfo() = default;
 
     SubscriptionIntraProcessBase::WeakPtr subscription;
-    rcl_subscription_options_t options;
+    rmw_qos_profile_t options;
     const char * topic_name;
     bool use_take_shared_method;
   };
@@ -108,7 +111,7 @@ private:
     PublisherInfo() = default;
 
     PublisherBase::WeakPtr publisher;
-    rcl_publisher_options_t options;
+    rmw_qos_profile_t options;
     const char * topic_name;
   };
 
@@ -157,16 +160,14 @@ private:
     }
 
     // a reliable subscription can't be connected with a best effort publisher
-    if (sub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE &&
-      pub_info.options.qos.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
+    if (sub_info.options.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE &&
+      pub_info.options.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
     {
       return false;
     }
 
-    // a transient local subscription can't be connected with a volatile publisher
-    if (sub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL &&
-      pub_info.options.qos.durability == RMW_QOS_POLICY_DURABILITY_VOLATILE)
-    {
+    // a publisher and a subscription with different durability can't communicate
+    if (sub_info.options.durability != pub_info.options.durability) {
       return false;
     }
 
@@ -181,7 +182,7 @@ public:
   add_subscription(
     uint64_t id,
     SubscriptionBase::SharedPtr subscription,
-    rcl_subscription_options_t options)
+    rmw_qos_profile_t options)
   {
     if (subscriptions_.find(id) != subscriptions_.end()) {
       return;
@@ -190,9 +191,9 @@ public:
 
     subscriptions_[id].subscription = subscription_intra_process;
     subscriptions_[id].topic_name = subscription->get_topic_name();
+    subscriptions_[id].options = options;
     subscriptions_[id].use_take_shared_method =
       subscription_intra_process->use_take_shared_method();
-    subscriptions_[id].options = options;
 
     // adds the subscription id to all the matchable publishers
     for (auto pair : publishers_) {
@@ -216,7 +217,7 @@ public:
   void add_publisher(
     uint64_t id,
     PublisherBase::SharedPtr publisher,
-    rcl_publisher_options_t options)
+    rmw_qos_profile_t options)
   {
     if (publishers_.find(id) != publishers_.end()) {
       return;
@@ -296,6 +297,17 @@ public:
       return std::shared_ptr<SubscriptionIntraProcessBase>(nullptr);
     } else {
       return subscription_it->second.subscription;
+    }
+  }
+
+  PublisherBase::WeakPtr
+  get_publisher(uint64_t intra_process_publisher_id)
+  {
+    auto publisher_it = publishers_.find(intra_process_publisher_id);
+    if (publisher_it == publishers_.end()) {
+      return std::shared_ptr<PublisherBase>(nullptr);
+    } else {
+      return publisher_it->second.publisher;
     }
   }
 };

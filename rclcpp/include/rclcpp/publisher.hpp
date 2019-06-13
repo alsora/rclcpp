@@ -32,6 +32,8 @@
 
 #include "rclcpp/allocator/allocator_common.hpp"
 #include "rclcpp/allocator/allocator_deleter.hpp"
+#include "buffers/simple_queue_implementation.hpp"
+#include "intra_process_buffer.hpp"
 #include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/publisher_base.hpp"
@@ -192,6 +194,24 @@ public:
   std::shared_ptr<MessageAlloc> get_allocator() const
   {
     return message_allocator_;
+  }
+
+  void
+  setup_intra_process(
+    const rcl_publisher_options_t & intra_process_options)
+  {
+    (void)intra_process_options;
+
+    if (this->get_actual_qos().durability != RMW_QOS_POLICY_DURABILITY_VOLATILE) {
+      // If the "durability" qos policy is not "volatile" we always have to publish messages
+      // also inter-process, in order to let late-joiners subscriptions from other processes
+      // to be able to retrieve the messages.
+      always_publish_inter_process_ = true;
+
+      // Create a ring buffer where messages published intra-process are stored
+      // The buffer always stores messages as MessageSharedPtr
+      intra_process_buffer_ = std::make_shared<PublisherIntraProcessBuffer<MessageT, Alloc>>(10);
+    }
   }
 
 protected:

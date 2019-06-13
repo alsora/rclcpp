@@ -244,23 +244,19 @@ PublisherBase::operator==(const rmw_gid_t * gid) const
 }
 
 void
-PublisherBase::setup_intra_process(
+PublisherBase::set_intra_process_manager(
   uint64_t intra_process_publisher_id,
-  IntraProcessManagerSharedPtr ipm,
-  const rcl_publisher_options_t & intra_process_options)
+  IntraProcessManagerSharedPtr ipm)
 {
-  (void)intra_process_options;
-
-  // If the "durability" qos policy is not "volatile" we always have to publish messages
-  // also inter-process, in order to let late-joiners subscriptions from other processes
-  // to be able to retrieve the messages.
-  if (this->get_actual_qos().durability != RMW_QOS_POLICY_DURABILITY_VOLATILE) {
-    always_publish_inter_process_ = true;
-  }
-
   intra_process_rmw_gid_ = rmw_gid_;
 
   intra_process_publisher_id_ = intra_process_publisher_id;
   weak_ipm_ = ipm;
   intra_process_is_enabled_ = true;
+}
+
+std::shared_ptr<rclcpp::PublisherIntraProcessBufferBase>
+PublisherBase::get_intra_process_buffer()
+{
+  return intra_process_buffer_;
 }
