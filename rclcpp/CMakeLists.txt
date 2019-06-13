@@ -186,6 +186,15 @@ if(BUILD_TESTING)
       "rosidl_typesupport_cpp"
     )
   endif()
+  ament_add_gtest(test_intra_process_buffer test/test_intra_process_buffer.cpp)
+  if(TARGET test_intra_process_buffer)
+    ament_target_dependencies(test_intra_process_buffer
+      "rcl"
+      "rcl_interfaces"
+      "rosidl_generator_cpp"
+      "rosidl_typesupport_cpp"
+    )
+  endif()
   ament_add_gmock(test_intra_process_manager test/test_intra_process_manager.cpp)
   if(TARGET test_intra_process_manager)
     ament_target_dependencies(test_intra_process_manager
