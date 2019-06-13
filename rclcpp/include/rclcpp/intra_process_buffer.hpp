@@ -47,6 +47,8 @@ public:
   virtual void consume(MessageT & msg) = 0;
   virtual void consume(ConstMessageSharedPtr & msg) = 0;
   virtual void consume(MessageUniquePtr & msg) = 0;
+
+  virtual bool use_take_shared_method() const = 0;
 };
 
 template<
@@ -108,6 +110,15 @@ public:
     buffer_->clear();
   }
 
+  bool use_take_shared_method() const
+  {
+    if (std::is_same<BufferT, ConstMessageSharedPtr>::value){
+      return true;
+    }
+    else{
+      return false;
+    }
+  }
 private:
   std::shared_ptr<BufferImplementationBase<BufferT>> buffer_;
 
@@ -216,9 +227,6 @@ private:
     buffer_->enqueue(*unique_msg);
   }
 
-
-
-
   // ConstMessageSharedPtr to MessageT
   template<typename OriginT>
   typename std::enable_if<
@@ -326,6 +334,11 @@ private:
     buffer_->dequeue(buffer_msg);
     unique_msg = std::make_unique<MessageT>(buffer_msg);
   }
+
+
+
+
+
 };
 
 }  // namespace intra_process_buffer

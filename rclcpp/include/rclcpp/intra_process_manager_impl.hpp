@@ -80,7 +80,7 @@ public:
     std::set<uint64_t> & take_owned_ids,
     uint64_t intra_process_publisher_id) const = 0;
 
-  virtual SubscriptionBase::WeakPtr
+  virtual SubscriptionIntraProcessBase::WeakPtr
   get_subscription(uint64_t intra_process_subscription_id) = 0;
 
 private:
@@ -97,7 +97,7 @@ private:
   {
     SubscriptionInfo() = default;
 
-    SubscriptionBase::WeakPtr subscription;
+    SubscriptionIntraProcessBase::WeakPtr subscription;
     rcl_subscription_options_t options;
     const char * topic_name;
     bool use_take_shared_method;
@@ -186,10 +186,11 @@ public:
     if (subscriptions_.find(id) != subscriptions_.end()) {
       return;
     }
+    auto subscription_intra_process = subscription->get_subscription_intra_process();
 
-    subscriptions_[id].subscription = subscription;
+    subscriptions_[id].subscription = subscription_intra_process;
     subscriptions_[id].topic_name = subscription->get_topic_name();
-    subscriptions_[id].use_take_shared_method = subscription->use_take_shared_method();
+    subscriptions_[id].use_take_shared_method = subscription_intra_process->use_take_shared_method();
     subscriptions_[id].options = options;
 
     // adds the subscription id to all the matchable publishers
@@ -286,12 +287,12 @@ public:
     take_owned_ids = publisher_it->second.take_ownership_subscriptions;
   }
 
-  SubscriptionBase::WeakPtr
+  SubscriptionIntraProcessBase::WeakPtr
   get_subscription(uint64_t intra_process_subscription_id)
   {
     auto subscription_it = subscriptions_.find(intra_process_subscription_id);
     if (subscription_it == subscriptions_.end()) {
-      return std::shared_ptr<SubscriptionBase>(nullptr);
+      return std::shared_ptr<SubscriptionIntraProcessBase>(nullptr);
     } else {
       return subscription_it->second.subscription;
     }

@@ -190,7 +190,7 @@ public:
   RCLCPP_PUBLIC
   uint64_t
   add_publisher(
-    rclcpp::PublisherBase::SharedPtr publisher,
+    PublisherBase::SharedPtr publisher,
     const rcl_publisher_options_t & options);
 
   /// Unregister a publisher using the publisher's unique id.
@@ -317,7 +317,7 @@ private:
     std::shared_ptr<const MessageT> message,
     std::set<uint64_t> subscription_ids)
   {
-    using IntraProcessBufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
+    using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
 
     for (auto id : subscription_ids) {
       auto weak_subscription = impl_->get_subscription(id);
@@ -326,13 +326,12 @@ private:
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      auto waitable = subscription->get_subscription_intra_process();
-      auto buffer_base = waitable->get_intra_process_buffer();
+      auto buffer_base = subscription->get_intra_process_buffer();
       std::shared_ptr<IntraProcessBufferT> buffer =
         std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
 
       buffer->add(message);
-      waitable->trigger_guard_condition();
+      subscription->trigger_guard_condition();
     }
   }
 
@@ -344,7 +343,7 @@ private:
     std::unique_ptr<MessageT, Deleter> message,
     std::set<uint64_t> subscription_ids)
   {
-    using IntraProcessBufferT = typename rclcpp::intra_process_buffer::IntraProcessBuffer<MessageT>;
+    using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
 
     for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
       auto weak_subscription = impl_->get_subscription(*it);
@@ -353,8 +352,7 @@ private:
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      auto waitable = subscription->get_subscription_intra_process();
-      auto buffer_base = waitable->get_intra_process_buffer();
+      auto buffer_base = subscription->get_intra_process_buffer();
       std::shared_ptr<IntraProcessBufferT> buffer = std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
 
       if (std::next(it) == subscription_ids.end()) {
@@ -365,7 +363,7 @@ private:
         std::unique_ptr<MessageT, Deleter> copy_message = std::make_unique<MessageT>(*message);
         buffer->add(std::move(copy_message));
       }
-      waitable->trigger_guard_condition();
+      subscription->trigger_guard_condition();
     }
   }
 
