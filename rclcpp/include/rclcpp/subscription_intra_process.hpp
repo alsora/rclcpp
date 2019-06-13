@@ -29,6 +29,7 @@
 #include "rcl/subscription.h"
 
 #include "rclcpp/any_subscription_callback.hpp"
+#include "rclcpp/buffers/simple_queue_implementation.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/contexts/default_context.hpp"
 #include "rclcpp/exceptions.hpp"
@@ -171,6 +172,105 @@ private:
   AnySubscriptionCallback<MessageT, Alloc> * any_callback_;
   std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer_;
 };
+
+
+template<
+  typename MessageT,
+  typename Alloc>
+std::shared_ptr<SubscriptionIntraProcess<MessageT, Alloc>>
+create_subscription_intra_process(
+  AnySubscriptionCallback<MessageT, Alloc> * callback,
+  IntraProcessBufferType buffer_type,
+  const rcl_subscription_options_t & options)
+{
+  (void)options;
+
+  using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
+  using MessageAlloc = typename MessageAllocTraits::allocator_type;
+  using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
+  using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
+  using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
+
+  std::shared_ptr<SubscriptionIntraProcessBase> subscription_intra_process;
+
+   switch (buffer_type) {
+      case IntraProcessBufferType::SharedPtr:
+        {
+          using BufferT = ConstMessageSharedPtr;
+
+          auto buffer_implementation =
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+
+          // construct the intra_process_buffer
+          auto typed_buffer =
+            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
+              BufferT>>(buffer_implementation);
+
+          // construct the subscription_intra_process
+          subscription_intra_process =
+            std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
+            callback, typed_buffer);
+
+          break;
+        }
+      case IntraProcessBufferType::UniquePtr:
+        {
+          using BufferT = MessageUniquePtr;
+
+          auto buffer_implementation =
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+
+          // construct the intra_process_buffer
+          auto typed_buffer =
+            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
+              BufferT>>(buffer_implementation);
+
+          // construct the subscription_intra_process
+          subscription_intra_process =
+            std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
+            callback, typed_buffer);
+
+          break;
+        }
+      case IntraProcessBufferType::MessageT:
+        {
+          using BufferT = MessageT;
+
+          auto buffer_implementation =
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+
+          // construct the intra_process_buffer
+          auto typed_buffer =
+            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
+              BufferT>>(buffer_implementation);
+
+          // construct the subscription_intra_process
+          subscription_intra_process =
+            std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
+            callback, typed_buffer);
+
+          break;
+        }
+      case IntraProcessBufferType::CallbackDefault:
+        {
+          throw std::runtime_error(
+                  "IntraProcessBufferType::CallbackDefault should have been overwritten");
+          break;
+        }
+      default:
+        {
+          throw std::runtime_error("Unrecognized IntraProcessBufferType value");
+          break;
+        }
+   }
+
+  return std::dynamic_pointer_cast<SubscriptionIntraProcess<MessageT, Alloc>>(
+    subscription_intra_process);
+}
+
+
+
+
 }  // namespace rclcpp
 
 #endif  // RCLCPP__SUBSCRIPTION_INTRA_PROCESS_HPP_

@@ -121,37 +121,13 @@ Node::create_subscription(
     typename rclcpp::subscription_traits::has_message_type<CallbackT>::type, AllocatorT>::SharedPtr
   msg_mem_strat)
 {
-  std::shared_ptr<SubscriptionT> sub = rclcpp::create_subscription<MessageT>(
+  return rclcpp::create_subscription<MessageT>(
     *this,
     extend_name_with_sub_namespace(topic_name, this->get_sub_namespace()),
     qos,
     std::forward<CallbackT>(callback),
     options,
     msg_mem_strat);
-
-  // if using intra-process communication adds the intra-process waitable to node wait set
-  bool use_intra_process;
-  switch (options.use_intra_process_comm) {
-    case IntraProcessSetting::Enable:
-      use_intra_process = true;
-      break;
-    case IntraProcessSetting::Disable:
-      use_intra_process = false;
-      break;
-    case IntraProcessSetting::NodeDefault:
-      use_intra_process = this->get_node_base_interface()->get_use_intra_process_default();
-      break;
-    default:
-      throw std::runtime_error("Unrecognized IntraProcessSetting value");
-      break;
-  }
-  if (use_intra_process) {
-    std::shared_ptr<rclcpp::Waitable> subscription_intra_process =
-      sub->get_subscription_intra_process();
-    this->get_node_waitables_interface()->add_waitable(subscription_intra_process, nullptr);
-  }
-
-  return sub;
 }
 
 template<

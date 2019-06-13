@@ -43,6 +43,7 @@ NodeTopics::create_publisher(
 
   // Setup intra process publishing if requested.
   if (use_intra_process) {
+    publisher->setup_intra_process(publisher_options);
     auto context = node_base_->get_context();
     // Get the intra process manager instance for this context.
     auto ipm = context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
@@ -51,11 +52,8 @@ NodeTopics::create_publisher(
       throw std::invalid_argument(
               "intraprocess communication is not allowed with keep all history qos policy");
     }
-    uint64_t intra_process_publisher_id = ipm->add_publisher(publisher, publisher_options);
-    publisher->setup_intra_process(
-      intra_process_publisher_id,
-      ipm,
-      publisher_options);
+    uint64_t intra_process_publisher_id = ipm->add_publisher(publisher);
+    publisher->set_intra_process_manager(intra_process_publisher_id, ipm);
   }
 
   // Return the completed publisher.
@@ -105,12 +103,6 @@ NodeTopics::create_subscription(
   // Setup intra process communication if requested.
   if (use_intra_process) {
     subscription->setup_intra_process(buffer_type, subscription_options);
-    auto context = node_base_->get_context();
-    auto ipm =
-      context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
-    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription,
-        subscription_options);
-    subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
   }
 
   // Return the completed subscription.
@@ -120,6 +112,7 @@ NodeTopics::create_subscription(
 void
 NodeTopics::add_subscription(
   rclcpp::SubscriptionBase::SharedPtr subscription,
+  bool use_intra_process,
   rclcpp::callback_group::CallbackGroup::SharedPtr callback_group)
 {
   // Assign to a group.
@@ -135,6 +128,18 @@ NodeTopics::add_subscription(
   callback_group->add_subscription(subscription);
   for (auto & subscription_event : subscription->get_event_handlers()) {
     callback_group->add_waitable(subscription_event);
+  }
+
+  if (use_intra_process) {
+    // Set the additional waitable for being notified about intra-process messages
+    callback_group->add_waitable(subscription->get_subscription_intra_process());
+    // Add the subscription to the intra-process manager
+    auto context = node_base_->get_context();
+    auto ipm =
+      context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
+    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription);
+    // Set the just created intra-process id in the subscription
+    subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
   }
 
   // Notify the executor that a new subscription was created using the parent Node.

@@ -31,21 +31,24 @@ IntraProcessManager::~IntraProcessManager()
 
 uint64_t
 IntraProcessManager::add_publisher(
-  rclcpp::PublisherBase::SharedPtr publisher,
-  const rcl_publisher_options_t & options)
+  rclcpp::PublisherBase::SharedPtr publisher)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_publisher(id, publisher, options);
+  impl_->add_publisher(id, publisher, publisher->get_actual_qos());
   return id;
 }
 
 uint64_t
 IntraProcessManager::add_subscription(
-  rclcpp::SubscriptionBase::SharedPtr subscription,
-  rcl_subscription_options_t options)
+  rclcpp::SubscriptionBase::SharedPtr subscription)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_subscription(id, subscription, options);
+  impl_->add_subscription(id, subscription, subscription->get_actual_qos());
+
+  if (subscription->get_actual_qos().durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    // Do something here
+  }
+
   return id;
 }
 

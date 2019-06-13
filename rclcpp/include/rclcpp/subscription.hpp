@@ -32,7 +32,6 @@
 #include "rcl_interfaces/msg/intra_process_message.hpp"
 
 #include "rclcpp/any_subscription_callback.hpp"
-#include "rclcpp/buffers/simple_queue_implementation.hpp"
 #include "rclcpp/exceptions.hpp"
 #include "rclcpp/expand_topic_or_service_name.hpp"
 #include "rclcpp/intra_process_manager.hpp"
@@ -164,84 +163,18 @@ public:
     IntraProcessBufferType buffer_type,
     const rcl_subscription_options_t & options)
   {
-    (void)options;
-
     // If the user has not specified a type for the intraprocess buffer, use the callback one
     if (buffer_type == IntraProcessBufferType::CallbackDefault) {
       buffer_type = this->use_take_shared_method() ?
         IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
     }
 
-    switch (buffer_type) {
-      case IntraProcessBufferType::SharedPtr:
-        {
-          using BufferT = ConstMessageSharedPtr;
-
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
-
-          // construct the intra_process_buffer
-          auto typed_buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
-              BufferT>>(buffer_implementation);
-
-          // construct the subscription_intra_process
-          subscription_intra_process_ =
-            std::make_shared<SubscriptionIntraProcess<CallbackMessageT, Alloc>>(
-            &any_callback_, typed_buffer);
-
-          break;
-        }
-      case IntraProcessBufferType::UniquePtr:
-        {
-          using BufferT = MessageUniquePtr;
-
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
-
-          // construct the intra_process_buffer
-          auto typed_buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
-              BufferT>>(buffer_implementation);
-
-          // construct the subscription_intra_process
-          subscription_intra_process_ =
-            std::make_shared<SubscriptionIntraProcess<CallbackMessageT, Alloc>>(
-            &any_callback_, typed_buffer);
-
-          break;
-        }
-      case IntraProcessBufferType::MessageT:
-        {
-          using BufferT = CallbackMessageT;
-
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
-
-          // construct the intra_process_buffer
-          auto typed_buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<CallbackMessageT,
-              BufferT>>(buffer_implementation);
-
-          // construct the subscription_intra_process
-          subscription_intra_process_ =
-            std::make_shared<SubscriptionIntraProcess<CallbackMessageT, Alloc>>(
-            &any_callback_, typed_buffer);
-
-          break;
-        }
-      case IntraProcessBufferType::CallbackDefault:
-        {
-          throw std::runtime_error(
-                  "IntraProcessBufferType::CallbackDefault should have been overwritten");
-          break;
-        }
-      default:
-        {
-          throw std::runtime_error("Unrecognized IntraProcessBufferType value");
-          break;
-        }
-    }
+    subscription_intra_process_ = create_subscription_intra_process<
+      CallbackMessageT,
+      Alloc>(
+      &any_callback_,
+      buffer_type,
+      options);
   }
 
   bool

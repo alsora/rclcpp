@@ -151,8 +151,7 @@ public:
   RCLCPP_PUBLIC
   uint64_t
   add_subscription(
-    SubscriptionBase::SharedPtr subscription,
-    rcl_subscription_options_t options);
+    SubscriptionBase::SharedPtr subscription);
 
   /// Unregister a subscription using the subscription's unique id.
   /**
@@ -190,8 +189,7 @@ public:
   RCLCPP_PUBLIC
   uint64_t
   add_publisher(
-    PublisherBase::SharedPtr publisher,
-    const rcl_publisher_options_t & options);
+    PublisherBase::SharedPtr publisher);
 
   /// Unregister a publisher using the publisher's unique id.
   /**
@@ -240,6 +238,21 @@ public:
     uint64_t intra_process_publisher_id,
     std::shared_ptr<const MessageT> message)
   {
+    // get the publisher object in order to check its durability QoS
+    auto weak_publisher = impl_->get_publisher(intra_process_publisher_id);
+    auto publisher = weak_publisher.lock();
+    if (!publisher) {
+      throw std::runtime_error("publisher has unexpectedly gone out of scope");
+    }
+    if (publisher->get_actual_qos().durability != RMW_QOS_POLICY_DURABILITY_VOLATILE) {
+      using IntraProcessBufferT = PublisherIntraProcessBuffer<MessageT>;
+
+      auto buffer_base = publisher->get_intra_process_buffer();
+      auto buffer = std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
+
+      buffer->add(message);
+    }
+
     std::set<uint64_t> take_shared_subscription_ids;
     std::set<uint64_t> take_owned_subscription_ids;
 

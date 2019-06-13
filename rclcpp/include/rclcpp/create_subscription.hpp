@@ -20,7 +20,9 @@
 #include <utility>
 
 #include "rclcpp/node_interfaces/get_node_topics_interface.hpp"
+#include "rclcpp/node_interfaces/get_node_waitables_interface.hpp"
 #include "rclcpp/node_interfaces/node_topics_interface.hpp"
+#include "rclcpp/node_interfaces/node_waitables_interface.hpp"
 #include "rclcpp/subscription_factory.hpp"
 #include "rclcpp/subscription_options.hpp"
 #include "rclcpp/qos.hpp"
@@ -88,7 +90,7 @@ template<
   typename NodeT>
 typename std::shared_ptr<SubscriptionT>
 create_subscription(
-  NodeT && node,
+  NodeT & node,
   const std::string & topic_name,
   const rclcpp::QoS & qos,
   CallbackT && callback,
@@ -100,7 +102,7 @@ create_subscription(
   msg_mem_strat = nullptr)
 {
   using rclcpp::node_interfaces::get_node_topics_interface;
-  auto node_topics = get_node_topics_interface(std::forward<NodeT>(node));
+  auto node_topics = get_node_topics_interface(node);
 
   if (!msg_mem_strat) {
     using rclcpp::message_memory_strategy::MessageMemoryStrategy;
@@ -138,7 +140,7 @@ create_subscription(
     options.template to_rcl_subscription_options<MessageT>(qos),
     use_intra_process,
     options.intra_process_buffer_type);
-  node_topics->add_subscription(sub, options.callback_group);
+  node_topics->add_subscription(sub, use_intra_process, options.callback_group);
   return std::dynamic_pointer_cast<SubscriptionT>(sub);
 }
 
