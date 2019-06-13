@@ -16,13 +16,12 @@
 
 #include <rcl/subscription.h>
 #include <rcl/publisher.h>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <cstdint>
-#include <memory>
-#include <string>
 #define RCLCPP_BUILDING_LIBRARY 1
 #include "rclcpp/allocator/allocator_common.hpp"
 #include "rclcpp/intra_process_buffer.hpp"
@@ -111,7 +110,7 @@ public:
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
-            "intra process publish called after destruction of intra process manager");
+              "intra process publish called after destruction of intra process manager");
     }
     if (!msg) {
       throw std::runtime_error("cannot publish msg which is a null pointer");
@@ -127,7 +126,7 @@ public:
     auto ipm = weak_ipm_.lock();
     if (!ipm) {
       throw std::runtime_error(
-            "intra process publish called after destruction of intra process manager");
+              "intra process publish called after destruction of intra process manager");
     }
     if (!msg) {
       throw std::runtime_error("cannot publish msg which is a null pointer");
@@ -182,8 +181,8 @@ public:
   std::uintptr_t mock_message_ptr;
 };
 
-}  // namespace intra_process_buffer
 }  // namespace mock
+}  // namespace intra_process_buffer
 }  // namespace rclcpp
 
 
@@ -286,9 +285,6 @@ public:
 
 using ::testing::_;
 using ::testing::UnorderedElementsAre;
-
-// NOLINTNEXTLINE(build/include_order)
-#include <rcl_interfaces/msg/log.hpp>
 
 /*
    This tests how the class connects and disconnects publishers and subscriptions:

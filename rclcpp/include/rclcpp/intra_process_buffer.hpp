@@ -112,13 +112,13 @@ public:
 
   bool use_take_shared_method() const
   {
-    if (std::is_same<BufferT, ConstMessageSharedPtr>::value){
+    if (std::is_same<BufferT, ConstMessageSharedPtr>::value) {
       return true;
-    }
-    else{
+    } else {
       return false;
     }
   }
+
 private:
   std::shared_ptr<BufferImplementationBase<BufferT>> buffer_;
 
@@ -334,11 +334,6 @@ private:
     buffer_->dequeue(buffer_msg);
     unique_msg = std::make_unique<MessageT>(buffer_msg);
   }
-
-
-
-
-
 };
 
 }  // namespace intra_process_buffer
