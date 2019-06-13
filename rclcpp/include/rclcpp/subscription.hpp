@@ -249,6 +249,7 @@ public:
   {
     return any_callback_.use_take_shared_method();
   }
+
 private:
   bool
   matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)

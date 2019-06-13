@@ -190,7 +190,8 @@ public:
 
     subscriptions_[id].subscription = subscription_intra_process;
     subscriptions_[id].topic_name = subscription->get_topic_name();
-    subscriptions_[id].use_take_shared_method = subscription_intra_process->use_take_shared_method();
+    subscriptions_[id].use_take_shared_method =
+      subscription_intra_process->use_take_shared_method();
     subscriptions_[id].options = options;
 
     // adds the subscription id to all the matchable publishers

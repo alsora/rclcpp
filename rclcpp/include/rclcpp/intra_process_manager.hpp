@@ -353,7 +353,8 @@ private:
       }
 
       auto buffer_base = subscription->get_intra_process_buffer();
-      std::shared_ptr<IntraProcessBufferT> buffer = std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
+      std::shared_ptr<IntraProcessBufferT> buffer = std::static_pointer_cast<IntraProcessBufferT>(
+        buffer_base);
 
       if (std::next(it) == subscription_ids.end()) {
         // If this is the last subscription, give up ownership
