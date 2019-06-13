@@ -55,6 +55,8 @@ class NodeWaitablesInterface;
 class SubscriptionIntraProcessBase : public rclcpp::Waitable
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS(SubscriptionIntraProcessBase)
+
   SubscriptionIntraProcessBase() {}
 
   size_t
@@ -74,6 +76,9 @@ public:
 
   virtual std::shared_ptr<intra_process_buffer::IntraProcessBufferBase>
   get_intra_process_buffer() = 0;
+
+  virtual bool
+  use_take_shared_method() const = 0;
 };
 
 
@@ -83,6 +88,8 @@ template<
 class SubscriptionIntraProcess : public SubscriptionIntraProcessBase
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS(SubscriptionIntraProcess)
+
   using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
   using MessageAlloc = typename MessageAllocTraits::allocator_type;
   using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
@@ -149,6 +156,12 @@ public:
   get_intra_process_buffer()
   {
     return buffer_;
+  }
+
+  bool
+  use_take_shared_method() const
+  {
+    return buffer_->use_take_shared_method();
   }
 
 private:
