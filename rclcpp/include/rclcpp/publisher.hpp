@@ -94,14 +94,21 @@ public:
       this->do_inter_process_publish(msg.get());
       return;
     }
+
     // If an interprocess subscription exist, then the unique_ptr is promoted
     // to a shared_ptr and published.
     // This allows doing the intraprocess publish first and then doing the
     // interprocess publish, resulting in lower publish-to-subscribe latency.
     // It's not possible to do that with an unique_ptr,
     // as do_intra_process_publish takes the ownership of the message.
-    bool inter_process_publish_needed =
-      get_subscription_count() > get_intra_process_subscription_count();
+    bool inter_process_publish_needed;
+    if (always_publish_inter_process_) {
+      inter_process_publish_needed = true;
+    } else {
+      inter_process_publish_needed =
+        get_subscription_count() > get_intra_process_subscription_count();
+    }
+
     if (inter_process_publish_needed) {
       std::shared_ptr<MessageT> shared_msg = std::move(msg);
       this->do_intra_process_publish(intra_process_publisher_id_, shared_msg);

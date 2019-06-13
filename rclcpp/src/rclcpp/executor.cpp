@@ -531,7 +531,7 @@ Executor::get_next_ready_executable(AnyExecutable & any_executable)
   }
   // Check the subscriptions to see if there are any that are ready
   memory_strategy_->get_next_subscription(any_executable, weak_nodes_);
-  if (any_executable.subscription || any_executable.subscription_intra_process) {
+  if (any_executable.subscription) {
     return true;
   }
   // Check the services to see if there are any that are ready
