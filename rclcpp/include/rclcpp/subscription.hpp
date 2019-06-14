@@ -169,9 +169,7 @@ public:
         IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
     }
 
-    subscription_intra_process_ = create_subscription_intra_process<
-      CallbackMessageT,
-      Alloc>(
+    subscription_intra_process_ = create_subscription_intra_process<CallbackMessageT,Alloc>(
       &any_callback_,
       buffer_type,
       options);

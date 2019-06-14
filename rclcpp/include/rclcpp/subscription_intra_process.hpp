@@ -170,23 +170,30 @@ create_subscription_intra_process(
   IntraProcessBufferType buffer_type,
   const rcl_subscription_options_t & options)
 {
-  (void)options;
-
   using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
   using MessageAlloc = typename MessageAllocTraits::allocator_type;
   using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
+  size_t buffer_size = options.qos.depth;
+
+  if (options.qos.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+    // TODO: this should be the limit of the underlying middleware
+    // Also the way in which the memory is allocated in the buffer should be different.
+    buffer_size = 1000;
+  }
+
   std::shared_ptr<SubscriptionIntraProcessBase> subscription_intra_process;
 
-   switch (buffer_type) {
+    switch (buffer_type) {
       case IntraProcessBufferType::SharedPtr:
         {
           using BufferT = ConstMessageSharedPtr;
 
           auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(
+            buffer_size);
 
           // construct the intra_process_buffer
           auto typed_buffer =
@@ -205,7 +212,8 @@ create_subscription_intra_process(
           using BufferT = MessageUniquePtr;
 
           auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(
+            buffer_size);
 
           // construct the intra_process_buffer
           auto typed_buffer =
@@ -224,7 +232,8 @@ create_subscription_intra_process(
           using BufferT = MessageT;
 
           auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(100);
+            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(
+            buffer_size);
 
           // construct the intra_process_buffer
           auto typed_buffer =
@@ -249,7 +258,7 @@ create_subscription_intra_process(
           throw std::runtime_error("Unrecognized IntraProcessBufferType value");
           break;
         }
-   }
+    }
 
   return std::dynamic_pointer_cast<SubscriptionIntraProcess<MessageT, Alloc>>(
     subscription_intra_process);
