@@ -210,7 +210,7 @@ public:
 
       // Create a ring buffer where messages published intra-process are stored
       // The buffer always stores messages as MessageSharedPtr
-      intra_process_buffer_ = std::make_shared<PublisherIntraProcessBuffer<MessageT, Alloc>>(10);
+      intra_process_buffer_ = std::make_shared<PublisherIntraProcessBuffer<MessageT>>(10);
     }
   }
 

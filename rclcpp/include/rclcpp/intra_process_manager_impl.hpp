@@ -74,6 +74,9 @@ public:
   virtual size_t
   get_subscription_count(uint64_t intra_process_publisher_id) const = 0;
 
+  virtual std::set<uint64_t>
+  get_all_matching_publishers(uint64_t intra_process_subscription_id) = 0;
+
   virtual void
   get_subscription_ids_for_pub(
     std::set<uint64_t> & take_shared_ids,
@@ -287,6 +290,25 @@ public:
 
     take_shared_ids = publisher_it->second.take_shared_subscriptions;
     take_owned_ids = publisher_it->second.take_ownership_subscriptions;
+  }
+
+  std::set<uint64_t>
+  get_all_matching_publishers(uint64_t intra_process_subscription_id)
+  {
+    std::set<uint64_t> res;
+
+    for (auto pair : pub_to_subs_) {
+      auto publisher_id = pair.first;
+      auto ownership_subs = pair.second.take_ownership_subscriptions;
+      auto shared_subs = pair.second.take_shared_subscriptions;
+      if (ownership_subs.find(intra_process_subscription_id) != ownership_subs.end() ||
+          shared_subs.find(intra_process_subscription_id) != shared_subs.end())
+      {
+        res.insert(publisher_id);
+      }
+    }
+
+    return res;
   }
 
   SubscriptionIntraProcessBase::WeakPtr

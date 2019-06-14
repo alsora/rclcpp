@@ -44,11 +44,6 @@ IntraProcessManager::add_subscription(
 {
   auto id = IntraProcessManager::get_next_unique_id();
   impl_->add_subscription(id, subscription, subscription->get_actual_qos());
-
-  if (subscription->get_actual_qos().durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    // Do something here
-  }
-
   return id;
 }
 

@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "rclcpp/allocator/allocator_common.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/visibility_control.hpp"
 
@@ -37,22 +36,15 @@ public:
   RCLCPP_SMART_PTR_DEFINITIONS(PublisherIntraProcessBufferBase)
 };
 
-template<typename T, typename Alloc = std::allocator<void>>
+template<typename T>
 class PublisherIntraProcessBuffer : public PublisherIntraProcessBufferBase
 {
 public:
-  RCLCPP_SMART_PTR_DEFINITIONS(PublisherIntraProcessBuffer<T, Alloc>)
-  using ElemAllocTraits = allocator::AllocRebind<T, Alloc>;
-  using ElemAlloc = typename ElemAllocTraits::allocator_type;
-  using ElemDeleter = allocator::Deleter<ElemAlloc, T>;
+  RCLCPP_SMART_PTR_DEFINITIONS(PublisherIntraProcessBuffer<T>)
   using ConstElemSharedPtr = std::shared_ptr<const T>;
-  using ElemUniquePtr = std::unique_ptr<T, ElemDeleter>;
-
-  using VectorAlloc =
-    typename std::allocator_traits<Alloc>::template rebind_alloc<ConstElemSharedPtr>;
 
   explicit PublisherIntraProcessBuffer(size_t size)
-  : elements_(size), head_(0)
+  : elements_(size), head_(0), wrapped_(false)
   {
     if (size == 0) {
       throw std::invalid_argument("size must be a positive, non-zero value");
@@ -85,24 +77,24 @@ public:
    * Elements are ordered from the oldest to the most recent.
    * The size of the returned vector is not fixed until the buffer wraps itself.
    */
-  std::vector<ConstElemSharedPtr, VectorAlloc>
+  std::vector<ConstElemSharedPtr>
   get_all()
   {
     if (wrapped_) {
-      std::vector<ConstElemSharedPtr, VectorAlloc> output(elements_.size());
+      std::vector<ConstElemSharedPtr> output(elements_.size());
       auto pivot = elements_.begin() + head_;
       std::rotate_copy(elements_.begin(), pivot, elements_.end(), output.begin());
       return output;
     } else {
       auto first = elements_.begin();
       auto last = elements_.begin() + head_;
-      std::vector<ConstElemSharedPtr, VectorAlloc> output(first, last);
+      std::vector<ConstElemSharedPtr> output(first, last);
       return output;
     }
   }
 
 private:
-  std::vector<ConstElemSharedPtr, VectorAlloc> elements_;
+  std::vector<ConstElemSharedPtr> elements_;
   size_t head_;
   bool wrapped_;
   std::mutex data_mutex_;

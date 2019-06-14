@@ -102,7 +102,15 @@ NodeTopics::create_subscription(
 
   // Setup intra process communication if requested.
   if (use_intra_process) {
+    // Create the intra-process subscription object
     subscription->setup_intra_process(buffer_type, subscription_options);
+    // Add the subscription to the intra-process manager
+    auto context = node_base_->get_context();
+    auto ipm =
+      context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
+    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription);
+    // Set the just created intra-process id in the subscription
+    subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
   }
 
   // Return the completed subscription.
@@ -133,13 +141,6 @@ NodeTopics::add_subscription(
   if (use_intra_process) {
     // Set the additional waitable for being notified about intra-process messages
     callback_group->add_waitable(subscription->get_subscription_intra_process());
-    // Add the subscription to the intra-process manager
-    auto context = node_base_->get_context();
-    auto ipm =
-      context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
-    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription);
-    // Set the just created intra-process id in the subscription
-    subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
   }
 
   // Notify the executor that a new subscription was created using the parent Node.
