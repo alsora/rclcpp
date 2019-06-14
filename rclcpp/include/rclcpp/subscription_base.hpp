@@ -162,6 +162,9 @@ public:
     uint64_t intra_process_subscription_id,
     IntraProcessManagerWeakPtr weak_ipm);
 
+  virtual void
+  handle_intra_process_late_joiner() = 0;
+
   std::shared_ptr<SubscriptionIntraProcessBase>
   get_subscription_intra_process();
 

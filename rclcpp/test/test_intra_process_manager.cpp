@@ -123,7 +123,7 @@ public:
   {
     qos_profile = rmw_qos_profile_default;
 
-    buffer_ = std::make_shared<PublisherIntraProcessBuffer<T, Alloc>>(10);
+    buffer_ = std::make_shared<PublisherIntraProcessBuffer<T>>(10);
   }
 
   void publish(MessageUniquePtr msg)
@@ -668,4 +668,40 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   auto received_message_pointer_11 = s11->pop();
   ASSERT_NE(original_message_pointer, received_message_pointer_10);
   ASSERT_EQ(original_message_pointer, received_message_pointer_11);
+}
+
+TEST(TestIntraProcessManager, transient_local) {
+  using IntraProcessManagerT = rclcpp::intra_process_manager::IntraProcessManager;
+  using MessageT = rcl_interfaces::msg::Log;
+  using PublisherT = rclcpp::mock::Publisher<MessageT>;
+  using SubscriptionT = rclcpp::mock::SubscriptionBase;
+
+  auto ipm = std::make_shared<IntraProcessManagerT>();
+
+  auto p1 = std::make_shared<PublisherT>();
+  p1->qos_profile.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+  auto p1_id = ipm->add_publisher(p1);
+  p1->set_intra_process_manager(p1_id, ipm);
+
+  auto shared_msg = std::make_shared<MessageT>();
+  auto original_message_pointer = reinterpret_cast<std::uintptr_t>(shared_msg.get());
+  p1->publish(shared_msg);
+
+  auto buffer_base = p1->get_intra_process_buffer();
+  std::shared_ptr<rclcpp::PublisherIntraProcessBuffer<MessageT>> buffer =
+    std::static_pointer_cast<rclcpp::PublisherIntraProcessBuffer<MessageT>>(buffer_base);
+
+  auto messages = buffer->get_all();
+  auto stored_pointer = reinterpret_cast<std::uintptr_t>(messages[0].get());
+  EXPECT_EQ(1u, messages.size());
+  EXPECT_EQ(original_message_pointer, stored_pointer);
+
+  auto s1 = std::make_shared<SubscriptionT>();
+  s1->qos_profile.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+  s1->set_intra_process_use_take_shared_method(true);
+  auto s1_id = ipm->add_subscription(s1);
+
+  ipm->get_transient_local_messages<MessageT>(s1_id);
+  auto received_message_pointer = s1->pop();
+  ASSERT_EQ(original_message_pointer, received_message_pointer);
 }

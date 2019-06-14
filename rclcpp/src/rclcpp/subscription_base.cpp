@@ -164,6 +164,10 @@ void SubscriptionBase::set_intra_process_manager(
   intra_process_subscription_id_ = intra_process_subscription_id;
   weak_ipm_ = weak_ipm;
   use_intra_process_ = true;
+
+  if (get_actual_qos().durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
+    handle_intra_process_late_joiner();
+  }
 }
 
 std::shared_ptr<rclcpp::SubscriptionIntraProcessBase>

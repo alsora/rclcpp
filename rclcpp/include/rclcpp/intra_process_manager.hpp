@@ -309,6 +309,53 @@ public:
     }
   }
 
+  template<typename MessageT>
+  void
+  get_transient_local_messages(
+    uint64_t intra_process_subscription_id)
+  {
+    using PublisherBufferT = PublisherIntraProcessBuffer<MessageT>;
+    using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
+
+    auto publishers_set = impl_->get_all_matching_publishers(intra_process_subscription_id);
+
+    auto weak_subscription = impl_->get_subscription(intra_process_subscription_id);
+    auto subscription = weak_subscription.lock();
+    if (!subscription) {
+      throw std::runtime_error("subscription has unexpectedly gone out of scope");
+    }
+
+    auto sub_buffer_base = subscription->get_intra_process_buffer();
+    std::shared_ptr<IntraProcessBufferT> sub_buffer =
+      std::static_pointer_cast<IntraProcessBufferT>(sub_buffer_base);
+
+    /// Loop on each publisher matched with this subscription
+    /// Extract all the already published messages
+    /// Push them into the subscription buffer
+    for (auto intra_process_publisher_id : publishers_set) {
+      auto weak_publisher = impl_->get_publisher(intra_process_publisher_id);
+      auto publisher = weak_publisher.lock();
+      if (!publisher) {
+        throw std::runtime_error("publisher has unexpectedly gone out of scope");
+      }
+
+      auto pub_buffer_base = publisher->get_intra_process_buffer();
+      std::shared_ptr<PublisherBufferT> pub_buffer =
+        std::static_pointer_cast<PublisherBufferT>(pub_buffer_base);
+
+      auto stored_messages = pub_buffer->get_all();
+
+      // TODO: maybe is better to get all the messages from all publishers before pushing
+      for (auto message : stored_messages) {
+        sub_buffer->add(message);
+      }
+    }
+
+    // TODO: the condition variable should be triggered only if something has been really added
+    subscription->trigger_guard_condition();
+  }
+
+
   /// Return true if the given rmw_gid_t matches any stored Publishers.
   RCLCPP_PUBLIC
   bool

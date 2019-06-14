@@ -183,6 +183,18 @@ public:
     return any_callback_.use_take_shared_method();
   }
 
+  void
+  handle_intra_process_late_joiner()
+  {
+    auto ipm = weak_ipm_.lock();
+    if (!ipm) {
+      throw std::runtime_error(
+              "handle_intra_process_late_joiner called after destruction of intra process manager");
+    }
+
+    ipm->template get_transient_local_messages<CallbackMessageT>(intra_process_subscription_id_);
+  }
+
 private:
   bool
   matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)
