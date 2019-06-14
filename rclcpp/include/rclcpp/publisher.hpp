@@ -196,19 +196,24 @@ public:
 
   void
   setup_intra_process(
-    const rcl_publisher_options_t & intra_process_options)
+    const rcl_publisher_options_t & options)
   {
-    (void)intra_process_options;
-
-    if (this->get_actual_qos().durability != RMW_QOS_POLICY_DURABILITY_VOLATILE) {
+    if (options.qos.durability != RMW_QOS_POLICY_DURABILITY_VOLATILE) {
       // If the "durability" qos policy is not "volatile" we always have to publish messages
       // also inter-process, in order to let late-joiners subscriptions from other processes
       // to be able to retrieve the messages.
       always_publish_inter_process_ = true;
 
+      size_t buffer_size = options.qos.depth;
+      if (options.qos.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
+        // TODO: this should be the limit of the underlying middleware
+        // Also the way in which the memory is allocated in the buffer should be different.
+        buffer_size = 1000;
+      }
+
       // Create a ring buffer where messages published intra-process are stored
       // The buffer always stores messages as MessageSharedPtr
-      intra_process_buffer_ = std::make_shared<PublisherIntraProcessBuffer<MessageT>>(10);
+      intra_process_buffer_ = std::make_shared<PublisherIntraProcessBuffer<MessageT>>(buffer_size);
     }
   }
 
