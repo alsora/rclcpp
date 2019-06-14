@@ -32,8 +32,6 @@
 
 #include "rclcpp/allocator/allocator_common.hpp"
 #include "rclcpp/allocator/allocator_deleter.hpp"
-#include "buffers/simple_queue_implementation.hpp"
-#include "intra_process_buffer.hpp"
 #include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/publisher_base.hpp"

@@ -20,9 +20,7 @@
 #include <utility>
 
 #include "rclcpp/node_interfaces/get_node_topics_interface.hpp"
-#include "rclcpp/node_interfaces/get_node_waitables_interface.hpp"
 #include "rclcpp/node_interfaces/node_topics_interface.hpp"
-#include "rclcpp/node_interfaces/node_waitables_interface.hpp"
 #include "rclcpp/subscription_factory.hpp"
 #include "rclcpp/subscription_options.hpp"
 #include "rclcpp/qos.hpp"

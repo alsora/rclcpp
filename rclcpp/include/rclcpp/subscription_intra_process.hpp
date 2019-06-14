@@ -15,32 +15,19 @@
 #ifndef RCLCPP__SUBSCRIPTION_INTRA_PROCESS_HPP_
 #define RCLCPP__SUBSCRIPTION_INTRA_PROCESS_HPP_
 
-#include <rmw/error_handling.h>
 #include <rmw/rmw.h>
 
 #include <functional>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <utility>
 
-
 #include "rcl/error_handling.h"
-#include "rcl/subscription.h"
 
 #include "rclcpp/any_subscription_callback.hpp"
 #include "rclcpp/buffers/simple_queue_implementation.hpp"
-#include "rclcpp/clock.hpp"
 #include "rclcpp/contexts/default_context.hpp"
-#include "rclcpp/exceptions.hpp"
 #include "rclcpp/intra_process_buffer.hpp"
-#include "rclcpp/logging.hpp"
-#include "rclcpp/macros.hpp"
-#include "rclcpp/message_memory_strategy.hpp"
-#include "rclcpp/subscription_traits.hpp"
-#include "rclcpp/time.hpp"
 #include "rclcpp/type_support_decl.hpp"
-#include "rclcpp/visibility_control.hpp"
 #include "rclcpp/waitable.hpp"
 
 namespace rclcpp

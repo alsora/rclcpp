@@ -25,7 +25,6 @@
 #include "rclcpp/node_interfaces/node_topics_interface.hpp"
 #include "rclcpp/publisher.hpp"
 #include "rclcpp/publisher_factory.hpp"
-#include "rclcpp/subscription.hpp"
 #include "rclcpp/visibility_control.hpp"
 
 namespace rclcpp
