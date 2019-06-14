@@ -24,7 +24,6 @@
 #include "rmw/rmw.h"
 
 #include "rclcpp/any_subscription_callback.hpp"
-#include "rclcpp/intra_process_buffer.hpp"
 #include "rclcpp/intra_process_buffer_type.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/qos_event.hpp"

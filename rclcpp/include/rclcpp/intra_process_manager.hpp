@@ -150,8 +150,7 @@ public:
    */
   RCLCPP_PUBLIC
   uint64_t
-  add_subscription(
-    SubscriptionBase::SharedPtr subscription);
+  add_subscription(SubscriptionBase::SharedPtr subscription);
 
   /// Unregister a subscription using the subscription's unique id.
   /**
