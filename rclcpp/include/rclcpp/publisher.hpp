@@ -91,7 +91,7 @@ public:
   publish(std::unique_ptr<MessageT, MessageDeleter> msg)
   {
     if (!intra_process_is_enabled_) {
-      this->do_inter_process_publish(msg.get());
+      this->do_inter_process_publish(*msg);
       return;
     }
 
@@ -112,7 +112,7 @@ public:
     if (inter_process_publish_needed) {
       std::shared_ptr<MessageT> shared_msg = std::move(msg);
       this->do_intra_process_publish(intra_process_publisher_id_, shared_msg);
-      this->do_inter_process_publish(shared_msg.get());
+      this->do_inter_process_publish(*shared_msg);
     } else {
       this->do_intra_process_publish(intra_process_publisher_id_, std::move(msg));
     }
@@ -136,7 +136,7 @@ public:
     // Avoid allocating when not using intra process.
     if (!intra_process_is_enabled_) {
       // In this case we're not using intra process.
-      return this->do_inter_process_publish(&msg);
+      return this->do_inter_process_publish(msg);
     }
     // Otherwise we have to allocate memory in a unique_ptr and pass it along.
     // As the message is not const, a copy should be made.
@@ -219,9 +219,9 @@ public:
 
 protected:
   void
-  do_inter_process_publish(const MessageT * msg)
+  do_inter_process_publish(const MessageT & msg)
   {
-    auto status = rcl_publish(&publisher_handle_, msg, nullptr);
+    auto status = rcl_publish(&publisher_handle_, &msg, nullptr);
     if (RCL_RET_PUBLISHER_INVALID == status) {
       rcl_reset_error();  // next call will reset error message if not context
       if (rcl_publisher_is_valid_except_context(&publisher_handle_)) {
