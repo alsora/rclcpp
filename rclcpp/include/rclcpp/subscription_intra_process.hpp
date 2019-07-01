@@ -25,6 +25,7 @@
 
 #include "rclcpp/any_subscription_callback.hpp"
 #include "rclcpp/buffers/simple_queue_implementation.hpp"
+#include "rclcpp/buffers/ring_buffer_implementation.hpp"
 #include "rclcpp/contexts/default_context.hpp"
 #include "rclcpp/intra_process_buffer.hpp"
 #include "rclcpp/type_support_decl.hpp"
@@ -192,7 +193,7 @@ create_subscription_intra_process(
           using BufferT = ConstMessageSharedPtr;
 
           auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(
+            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
             buffer_size);
 
           // construct the intra_process_buffer
@@ -212,7 +213,7 @@ create_subscription_intra_process(
           using BufferT = MessageUniquePtr;
 
           auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(
+            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
             buffer_size);
 
           // construct the intra_process_buffer
@@ -232,7 +233,7 @@ create_subscription_intra_process(
           using BufferT = MessageT;
 
           auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::SimpleQueueImplementation<BufferT>>(
+            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
             buffer_size);
 
           // construct the intra_process_buffer
