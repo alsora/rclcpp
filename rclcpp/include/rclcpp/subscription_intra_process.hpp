@@ -185,7 +185,7 @@ create_subscription_intra_process(
     buffer_size = 1000;
   }
 
-  std::shared_ptr<SubscriptionIntraProcessBase> subscription_intra_process;
+  std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer;
 
     switch (buffer_type) {
       case IntraProcessBufferType::SharedPtr:
@@ -197,14 +197,9 @@ create_subscription_intra_process(
             buffer_size);
 
           // construct the intra_process_buffer
-          auto typed_buffer =
+          buffer =
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
               BufferT>>(buffer_implementation);
-
-          // construct the subscription_intra_process
-          subscription_intra_process =
-            std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
-            callback, typed_buffer);
 
           break;
         }
@@ -217,14 +212,9 @@ create_subscription_intra_process(
             buffer_size);
 
           // construct the intra_process_buffer
-          auto typed_buffer =
+          buffer =
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
               BufferT>>(buffer_implementation);
-
-          // construct the subscription_intra_process
-          subscription_intra_process =
-            std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
-            callback, typed_buffer);
 
           break;
         }
@@ -237,14 +227,9 @@ create_subscription_intra_process(
             buffer_size);
 
           // construct the intra_process_buffer
-          auto typed_buffer =
+          buffer =
             std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
               BufferT>>(buffer_implementation);
-
-          // construct the subscription_intra_process
-          subscription_intra_process =
-            std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
-            callback, typed_buffer);
 
           break;
         }
@@ -260,6 +245,11 @@ create_subscription_intra_process(
           break;
         }
     }
+
+    // construct the subscription_intra_process
+    std::shared_ptr<SubscriptionIntraProcessBase> subscription_intra_process =
+      std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
+      callback, buffer);
 
   return std::dynamic_pointer_cast<SubscriptionIntraProcess<MessageT, Alloc>>(
     subscription_intra_process);
