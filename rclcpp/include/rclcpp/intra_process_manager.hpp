@@ -31,13 +31,16 @@
 #include "rclcpp/allocator/allocator_deleter.hpp"
 #include "rclcpp/intra_process_manager_impl.hpp"
 #include "rclcpp/macros.hpp"
-#include "rclcpp/publisher_base.hpp"
-#include "rclcpp/subscription_base.hpp"
-#include "rclcpp/subscription_intra_process.hpp"
 #include "rclcpp/visibility_control.hpp"
 
 namespace rclcpp
 {
+
+// Forward declarations
+class SubscriptonBase;
+class SubscriptionIntraProcessBase;
+class PublisherBase;
+
 namespace intra_process_manager
 {
 
@@ -150,7 +153,9 @@ public:
    */
   RCLCPP_PUBLIC
   uint64_t
-  add_subscription(SubscriptionBase::SharedPtr subscription);
+  add_subscription(
+    SubscriptionBase::SharedPtr subscription,
+    SubscriptionIntraProcessBase::SharedPtr subscription_intra_process);
 
   /// Unregister a subscription using the subscription's unique id.
   /**
@@ -318,9 +323,8 @@ public:
 
     auto publishers_set = impl_->get_all_matching_publishers(intra_process_subscription_id);
 
-    auto weak_subscription = impl_->get_subscription(intra_process_subscription_id);
-    auto subscription = weak_subscription.lock();
-    if (!subscription) {
+    auto subscription = impl_->get_subscription(intra_process_subscription_id);
+    if (subscription == nullptr) {
       throw std::runtime_error("subscription has unexpectedly gone out of scope");
     }
 
@@ -379,9 +383,8 @@ private:
     using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
 
     for (auto id : subscription_ids) {
-      auto weak_subscription = impl_->get_subscription(id);
-      auto subscription = weak_subscription.lock();
-      if (!subscription) {
+      auto subscription = impl_->get_subscription(id);
+      if (subscription == nullptr) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
@@ -405,9 +408,8 @@ private:
     using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
 
     for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
-      auto weak_subscription = impl_->get_subscription(*it);
-      auto subscription = weak_subscription.lock();
-      if (!subscription) {
+      auto subscription = impl_->get_subscription(*it);
+      if (subscription == nullptr) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 

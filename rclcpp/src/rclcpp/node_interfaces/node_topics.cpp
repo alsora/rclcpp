@@ -93,34 +93,42 @@ rclcpp::SubscriptionBase::SharedPtr
 NodeTopics::create_subscription(
   const std::string & topic_name,
   const rclcpp::SubscriptionFactory & subscription_factory,
-  const rcl_subscription_options_t & subscription_options,
-  bool use_intra_process,
-  IntraProcessBufferType buffer_type)
+  const rcl_subscription_options_t & subscription_options)
 {
   auto subscription = subscription_factory.create_typed_subscription(
     node_base_, topic_name, subscription_options);
-
-  // Setup intra process communication if requested.
-  if (use_intra_process) {
-    // Create the intra-process subscription object
-    subscription->setup_intra_process(buffer_type, subscription_options);
-    // Add the subscription to the intra-process manager
-    auto context = node_base_->get_context();
-    auto ipm =
-      context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
-    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription);
-    // Set the just created intra-process id in the subscription
-    subscription->set_intra_process_manager(intra_process_subscription_id, ipm);
-  }
 
   // Return the completed subscription.
   return subscription;
 }
 
+
+rclcpp::SubscriptionIntraProcessBase::SharedPtr
+NodeTopics::create_subscription_intra_process(
+  rclcpp::SubscriptionBase::SharedPtr sub,
+  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase> buffer,
+  const rclcpp::SubscriptionFactory & subscription_factory)
+{
+  auto context = node_base_->get_context();
+  auto ipm =
+    context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
+
+  auto subscription_intra_process = subscription_factory.create_typed_subscription_intra_process(
+    sub, buffer);
+
+  uint64_t intra_process_subscription_id = ipm->add_subscription(sub, subscription_intra_process);
+
+  sub->set_intra_process_manager(intra_process_subscription_id, ipm);
+
+  return subscription_intra_process;
+}
+
+
+
 void
 NodeTopics::add_subscription(
   rclcpp::SubscriptionBase::SharedPtr subscription,
-  bool use_intra_process,
+  rclcpp::SubscriptionIntraProcessBase::SharedPtr subscription_intra_process,
   rclcpp::callback_group::CallbackGroup::SharedPtr callback_group)
 {
   // Assign to a group.
@@ -138,9 +146,8 @@ NodeTopics::add_subscription(
     callback_group->add_waitable(subscription_event);
   }
 
-  if (use_intra_process) {
-    // Set the additional waitable for being notified about intra-process messages
-    callback_group->add_waitable(subscription->get_subscription_intra_process());
+  if (subscription_intra_process != nullptr) {
+    callback_group->add_waitable(subscription_intra_process);
   }
 
   // Notify the executor that a new subscription was created using the parent Node.

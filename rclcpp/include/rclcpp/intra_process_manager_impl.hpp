@@ -34,7 +34,6 @@
 
 #include "rclcpp/macros.hpp"
 #include "rclcpp/publisher_base.hpp"
-#include "rclcpp/subscription_base.hpp"
 #include "rclcpp/subscription_intra_process.hpp"
 #include "rclcpp/visibility_control.hpp"
 
@@ -55,15 +54,14 @@ public:
   add_subscription(
     uint64_t id,
     SubscriptionBase::SharedPtr subscription,
-    rmw_qos_profile_t options) = 0;
+    SubscriptionIntraProcessBase::SharedPtr subscription_intra_process) = 0;
 
   virtual void
   remove_subscription(uint64_t intra_process_subscription_id) = 0;
 
   virtual void add_publisher(
     uint64_t id,
-    PublisherBase::SharedPtr publisher,
-    rmw_qos_profile_t options) = 0;
+    PublisherBase::SharedPtr publisher) = 0;
 
   virtual void
   remove_publisher(uint64_t intra_process_publisher_id) = 0;
@@ -83,7 +81,7 @@ public:
     std::set<uint64_t> & take_owned_ids,
     uint64_t intra_process_publisher_id) const = 0;
 
-  virtual SubscriptionIntraProcessBase::WeakPtr
+  virtual SubscriptionIntraProcessBase::SharedPtr
   get_subscription(uint64_t intra_process_subscription_id) = 0;
 
   virtual PublisherBase::WeakPtr
@@ -103,7 +101,7 @@ private:
   {
     SubscriptionInfo() = default;
 
-    SubscriptionIntraProcessBase::WeakPtr subscription;
+    SubscriptionIntraProcessBase::SharedPtr subscription;
     rmw_qos_profile_t options;
     const char * topic_name;
     bool use_take_shared_method;
@@ -185,16 +183,17 @@ public:
   add_subscription(
     uint64_t id,
     SubscriptionBase::SharedPtr subscription,
-    rmw_qos_profile_t options)
+    SubscriptionIntraProcessBase::SharedPtr subscription_intra_process)
   {
     if (subscriptions_.find(id) != subscriptions_.end()) {
       return;
     }
-    auto subscription_intra_process = subscription->get_subscription_intra_process();
+
+    std::cout<<"Add subscription on "<< subscription->get_topic_name()<< " ... id> "<< id<< " -->"<< (subscription_intra_process != nullptr) <<std::endl;
 
     subscriptions_[id].subscription = subscription_intra_process;
     subscriptions_[id].topic_name = subscription->get_topic_name();
-    subscriptions_[id].options = options;
+    subscriptions_[id].options = subscription->get_actual_qos();
     subscriptions_[id].use_take_shared_method =
       subscription_intra_process->use_take_shared_method();
 
@@ -219,16 +218,17 @@ public:
 
   void add_publisher(
     uint64_t id,
-    PublisherBase::SharedPtr publisher,
-    rmw_qos_profile_t options)
+    PublisherBase::SharedPtr publisher)
   {
     if (publishers_.find(id) != publishers_.end()) {
       return;
     }
 
+    std::cout<<"Add publisher on "<< publisher->get_topic_name()<< " ... id> "<< id<<std::endl;
+
     publishers_[id].publisher = publisher;
     publishers_[id].topic_name = publisher->get_topic_name();
-    publishers_[id].options = options;
+    publishers_[id].options = publisher->get_actual_qos();
 
     // create an entry for the publisher id and populate with already existing subscriptions
     for (auto pair : subscriptions_) {
@@ -311,11 +311,12 @@ public:
     return res;
   }
 
-  SubscriptionIntraProcessBase::WeakPtr
+  SubscriptionIntraProcessBase::SharedPtr
   get_subscription(uint64_t intra_process_subscription_id)
   {
     auto subscription_it = subscriptions_.find(intra_process_subscription_id);
     if (subscription_it == subscriptions_.end()) {
+      std::cout<<"Looking for wrong sub id "<< intra_process_subscription_id<<std::endl;
       return std::shared_ptr<SubscriptionIntraProcessBase>(nullptr);
     } else {
       return subscription_it->second.subscription;

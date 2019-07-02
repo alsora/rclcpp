@@ -34,16 +34,17 @@ IntraProcessManager::add_publisher(
   rclcpp::PublisherBase::SharedPtr publisher)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_publisher(id, publisher, publisher->get_actual_qos());
+  impl_->add_publisher(id, publisher);
   return id;
 }
 
 uint64_t
 IntraProcessManager::add_subscription(
-  rclcpp::SubscriptionBase::SharedPtr subscription)
+  SubscriptionBase::SharedPtr subscription,
+  SubscriptionIntraProcessBase::SharedPtr subscription_intra_process)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_subscription(id, subscription, subscription->get_actual_qos());
+  impl_->add_subscription(id, subscription, subscription_intra_process);
   return id;
 }
 
