@@ -25,16 +25,12 @@
 #include <string>
 #include <utility>
 
-
 #include "rcl/error_handling.h"
 #include "rcl/subscription.h"
-
-#include "rcl_interfaces/msg/intra_process_message.hpp"
 
 #include "rclcpp/any_subscription_callback.hpp"
 #include "rclcpp/exceptions.hpp"
 #include "rclcpp/expand_topic_or_service_name.hpp"
-#include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/logging.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/message_memory_strategy.hpp"
@@ -146,6 +142,16 @@ public:
     any_callback_.dispatch(typed_message, message_info);
   }
 
+  void handle_intra_process_message(ConstMessageSharedPtr message)
+  {
+    any_callback_.dispatch_intra_process(message, rmw_message_info_t());
+  }
+
+  void handle_intra_process_message(MessageUniquePtr message)
+  {
+    any_callback_.dispatch_intra_process(std::move(message), rmw_message_info_t());
+  }
+
   /// Return the loaned message.
   /** \param message message to be returned */
   void return_message(std::shared_ptr<void> & message)
@@ -159,28 +165,13 @@ public:
     message_memory_strategy_->return_serialized_message(message);
   }
 
-  void setup_intra_process(
-    IntraProcessBufferType buffer_type,
-    const rcl_subscription_options_t & options)
-  {
-    // If the user has not specified a type for the intraprocess buffer, use the callback one
-    if (buffer_type == IntraProcessBufferType::CallbackDefault) {
-      buffer_type = this->use_take_shared_method() ?
-        IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
-    }
-
-    subscription_intra_process_ = create_subscription_intra_process<CallbackMessageT,Alloc>(
-      &any_callback_,
-      buffer_type,
-      options);
-  }
-
   bool
   use_take_shared_method()
   {
     return any_callback_.use_take_shared_method();
   }
 
+  /*
   void
   handle_intra_process_late_joiner()
   {
@@ -192,6 +183,7 @@ public:
 
     ipm->template get_transient_local_messages<CallbackMessageT>(intra_process_subscription_id_);
   }
+  */
 
 private:
   bool

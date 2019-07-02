@@ -28,8 +28,11 @@
 #include "rclcpp/buffers/ring_buffer_implementation.hpp"
 #include "rclcpp/contexts/default_context.hpp"
 #include "rclcpp/intra_process_buffer.hpp"
+#include "rclcpp/subscription.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/waitable.hpp"
+
+#include "rclcpp/intra_process_buffer_type.hpp"
 
 namespace rclcpp
 {
@@ -73,7 +76,8 @@ public:
 
 template<
   typename MessageT,
-  typename Alloc>
+  typename Alloc,
+  typename SubscriptionT = Subscription<MessageT, Alloc>>
 class SubscriptionIntraProcess : public SubscriptionIntraProcessBase
 {
 public:
@@ -86,9 +90,9 @@ public:
   using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
   SubscriptionIntraProcess(
-    AnySubscriptionCallback<MessageT, Alloc> * callback_ptr,
+    std::shared_ptr<SubscriptionT> subscription,
     std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer)
-  : any_callback_(callback_ptr), buffer_(buffer)
+  : subscription_(subscription), buffer_(buffer)
   {
     std::shared_ptr<rclcpp::Context> context_ptr =
       rclcpp::contexts::default_context::get_global_default_context();
@@ -123,14 +127,14 @@ public:
 
   void execute()
   {
-    if (any_callback_->use_take_shared_method()) {
+    if (subscription_->use_take_shared_method()) {
       ConstMessageSharedPtr msg;
       buffer_->consume(msg);
-      any_callback_->dispatch_intra_process(msg, rmw_message_info_t());
+      subscription_->handle_intra_process_message(msg);
     } else {
       MessageUniquePtr msg;
       buffer_->consume(msg);
-      any_callback_->dispatch_intra_process(std::move(msg), rmw_message_info_t());
+      subscription_->handle_intra_process_message(std::move(msg));
     }
   }
 
@@ -157,106 +161,9 @@ private:
   std::recursive_mutex reentrant_mutex_;
   rcl_guard_condition_t gc_;
 
-  AnySubscriptionCallback<MessageT, Alloc> * any_callback_;
+  std::shared_ptr<SubscriptionT> subscription_;
   std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer_;
 };
-
-
-template<
-  typename MessageT,
-  typename Alloc>
-std::shared_ptr<SubscriptionIntraProcess<MessageT, Alloc>>
-create_subscription_intra_process(
-  AnySubscriptionCallback<MessageT, Alloc> * callback,
-  IntraProcessBufferType buffer_type,
-  const rcl_subscription_options_t & options)
-{
-  using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
-  using MessageAlloc = typename MessageAllocTraits::allocator_type;
-  using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
-  using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
-  using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
-
-  size_t buffer_size = options.qos.depth;
-
-  if (options.qos.history == RMW_QOS_POLICY_HISTORY_KEEP_ALL) {
-    // TODO: this should be the limit of the underlying middleware
-    // Also the way in which the memory is allocated in the buffer should be different.
-    buffer_size = 1000;
-  }
-
-  std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer;
-
-    switch (buffer_type) {
-      case IntraProcessBufferType::SharedPtr:
-        {
-          using BufferT = ConstMessageSharedPtr;
-
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
-            buffer_size);
-
-          // construct the intra_process_buffer
-          buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
-              BufferT>>(buffer_implementation);
-
-          break;
-        }
-      case IntraProcessBufferType::UniquePtr:
-        {
-          using BufferT = MessageUniquePtr;
-
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
-            buffer_size);
-
-          // construct the intra_process_buffer
-          buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
-              BufferT>>(buffer_implementation);
-
-          break;
-        }
-      case IntraProcessBufferType::MessageT:
-        {
-          using BufferT = MessageT;
-
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
-            buffer_size);
-
-          // construct the intra_process_buffer
-          buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
-              BufferT>>(buffer_implementation);
-
-          break;
-        }
-      case IntraProcessBufferType::CallbackDefault:
-        {
-          throw std::runtime_error(
-                  "IntraProcessBufferType::CallbackDefault should have been overwritten");
-          break;
-        }
-      default:
-        {
-          throw std::runtime_error("Unrecognized IntraProcessBufferType value");
-          break;
-        }
-    }
-
-    // construct the subscription_intra_process
-    std::shared_ptr<SubscriptionIntraProcessBase> subscription_intra_process =
-      std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
-      callback, buffer);
-
-  return std::dynamic_pointer_cast<SubscriptionIntraProcess<MessageT, Alloc>>(
-    subscription_intra_process);
-}
-
-
-
 
 }  // namespace rclcpp
 
