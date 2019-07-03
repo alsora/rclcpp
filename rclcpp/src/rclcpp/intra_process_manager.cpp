@@ -40,11 +40,10 @@ IntraProcessManager::add_publisher(
 
 uint64_t
 IntraProcessManager::add_subscription(
-  SubscriptionBase::SharedPtr subscription,
-  SubscriptionIntraProcessBase::SharedPtr subscription_intra_process)
+  SubscriptionIntraProcessBase::SharedPtr subscription)
 {
   auto id = IntraProcessManager::get_next_unique_id();
-  impl_->add_subscription(id, subscription, subscription_intra_process);
+  impl_->add_subscription(id, subscription);
 
   // TODO this requires a template
   /*

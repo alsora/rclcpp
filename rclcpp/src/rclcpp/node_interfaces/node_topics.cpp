@@ -116,7 +116,7 @@ NodeTopics::create_subscription_intra_process(
   auto subscription_intra_process = subscription_factory.create_typed_subscription_intra_process(
     sub, buffer);
 
-  uint64_t intra_process_subscription_id = ipm->add_subscription(sub, subscription_intra_process);
+  uint64_t intra_process_subscription_id = ipm->add_subscription(subscription_intra_process);
 
   sub->set_intra_process_manager(intra_process_subscription_id, ipm);
 

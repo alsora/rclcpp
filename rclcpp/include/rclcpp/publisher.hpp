@@ -147,7 +147,7 @@ public:
     this->publish(std::move(unique_msg));
   }
 
-// Skip deprecated attribute in windows, as it raise a warning in template specialization.
+// Skip deprecated attribute in windows, as it raises a warning in template specialization.
 #if !defined(_WIN32)
   [[deprecated(
     "Use publish(*msg). Check against nullptr before calling if necessary.")]]
@@ -167,7 +167,7 @@ public:
     return this->do_serialized_publish(&serialized_msg);
   }
 
-// Skip deprecated attribute in windows, as it raise a warning in template specialization.
+// Skip deprecated attribute in windows, as it raises a warning in template specialization.
 #if !defined(_WIN32)
   [[deprecated(
     "Use publish(*serialized_msg). Check against nullptr before calling if necessary.")]]

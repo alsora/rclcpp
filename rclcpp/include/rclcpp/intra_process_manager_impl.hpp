@@ -53,8 +53,7 @@ public:
   virtual void
   add_subscription(
     uint64_t id,
-    SubscriptionBase::SharedPtr subscription,
-    SubscriptionIntraProcessBase::SharedPtr subscription_intra_process) = 0;
+    SubscriptionIntraProcessBase::SharedPtr subscription) = 0;
 
   virtual void
   remove_subscription(uint64_t intra_process_subscription_id) = 0;
@@ -182,20 +181,17 @@ public:
   void
   add_subscription(
     uint64_t id,
-    SubscriptionBase::SharedPtr subscription,
-    SubscriptionIntraProcessBase::SharedPtr subscription_intra_process)
+    SubscriptionIntraProcessBase::SharedPtr subscription)
   {
     if (subscriptions_.find(id) != subscriptions_.end()) {
       return;
     }
 
-    std::cout<<"Add subscription on "<< subscription->get_topic_name()<< " ... id> "<< id<< " -->"<< (subscription_intra_process != nullptr) <<std::endl;
-
-    subscriptions_[id].subscription = subscription_intra_process;
+    subscriptions_[id].subscription = subscription;
     subscriptions_[id].topic_name = subscription->get_topic_name();
     subscriptions_[id].options = subscription->get_actual_qos();
     subscriptions_[id].use_take_shared_method =
-      subscription_intra_process->use_take_shared_method();
+      subscription->use_take_shared_method();
 
     // adds the subscription id to all the matchable publishers
     for (auto pair : publishers_) {
@@ -223,8 +219,6 @@ public:
     if (publishers_.find(id) != publishers_.end()) {
       return;
     }
-
-    std::cout<<"Add publisher on "<< publisher->get_topic_name()<< " ... id> "<< id<<std::endl;
 
     publishers_[id].publisher = publisher;
     publishers_[id].topic_name = publisher->get_topic_name();

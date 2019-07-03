@@ -154,8 +154,7 @@ public:
   RCLCPP_PUBLIC
   uint64_t
   add_subscription(
-    SubscriptionBase::SharedPtr subscription,
-    SubscriptionIntraProcessBase::SharedPtr subscription_intra_process);
+    SubscriptionIntraProcessBase::SharedPtr subscription);
 
   /// Unregister a subscription using the subscription's unique id.
   /**
@@ -318,6 +317,7 @@ public:
   get_transient_local_messages(
     uint64_t intra_process_subscription_id)
   {
+    /*
     using PublisherBufferT = PublisherIntraProcessBuffer<MessageT>;
     using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
 
@@ -356,6 +356,7 @@ public:
 
     // TODO: the condition variable should be triggered only if something has been really added
     subscription->trigger_guard_condition();
+   */
   }
 
 
@@ -380,20 +381,16 @@ private:
     std::shared_ptr<const MessageT> message,
     std::set<uint64_t> subscription_ids)
   {
-    using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
-
-    for (auto id : subscription_ids) {
-      auto subscription = impl_->get_subscription(id);
-      if (subscription == nullptr) {
+    for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
+      auto subscription_base = impl_->get_subscription(*it);
+      if (subscription_base == nullptr) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      auto buffer_base = subscription->get_intra_process_buffer();
-      std::shared_ptr<IntraProcessBufferT> buffer =
-        std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
+      auto subscription =
+        std::static_pointer_cast<SubscriptionIntraProcess<MessageT>>(subscription_base);
 
-      buffer->add(message);
-      subscription->trigger_guard_condition();
+      subscription->provide_intra_process_message(message);
     }
   }
 
@@ -405,27 +402,23 @@ private:
     std::unique_ptr<MessageT, Deleter> message,
     std::set<uint64_t> subscription_ids)
   {
-    using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
-
     for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
-      auto subscription = impl_->get_subscription(*it);
-      if (subscription == nullptr) {
+      auto subscription_base = impl_->get_subscription(*it);
+      if (subscription_base == nullptr) {
         throw std::runtime_error("subscription has unexpectedly gone out of scope");
       }
 
-      auto buffer_base = subscription->get_intra_process_buffer();
-      std::shared_ptr<IntraProcessBufferT> buffer = std::static_pointer_cast<IntraProcessBufferT>(
-        buffer_base);
+      auto subscription =
+        std::static_pointer_cast<SubscriptionIntraProcess<MessageT>>(subscription_base);
 
       if (std::next(it) == subscription_ids.end()) {
         // If this is the last subscription, give up ownership
-        buffer->add(std::move(message));
+        subscription->provide_intra_process_message(std::move(message));
       } else {
         // Copy the message since we have additional subscriptions to serve
         std::unique_ptr<MessageT, Deleter> copy_message = std::make_unique<MessageT>(*message);
-        buffer->add(std::move(copy_message));
+        subscription->provide_intra_process_message(std::move(copy_message));
       }
-      subscription->trigger_guard_condition();
     }
   }
 

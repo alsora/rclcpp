@@ -63,21 +63,24 @@ public:
   virtual void
   execute() = 0;
 
-  virtual void
-  trigger_guard_condition() = 0;
-
-  virtual std::shared_ptr<intra_process_buffer::IntraProcessBufferBase>
-  get_intra_process_buffer() = 0;
-
   virtual bool
   use_take_shared_method() const = 0;
+
+  virtual const char*
+  get_topic_name() const = 0;
+
+  virtual rmw_qos_profile_t
+  get_actual_qos() const = 0;
+
+private:
+  virtual void
+  trigger_guard_condition() = 0;
 };
 
 
 template<
   typename MessageT,
-  typename Alloc,
-  typename SubscriptionT = Subscription<MessageT, Alloc>>
+  typename Alloc = std::allocator<void>>
 class SubscriptionIntraProcess : public SubscriptionIntraProcessBase
 {
 public:
@@ -89,9 +92,12 @@ public:
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
+  using BufferPtr = typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr;
+  using SubscriptionPtr = typename Subscription<MessageT, Alloc>::SharedPtr;
+
   SubscriptionIntraProcess(
-    std::shared_ptr<SubscriptionT> subscription,
-    std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer)
+    SubscriptionPtr subscription,
+    BufferPtr buffer)
   : subscription_(subscription), buffer_(buffer)
   {
     std::shared_ptr<rclcpp::Context> context_ptr =
@@ -139,16 +145,17 @@ public:
   }
 
   void
-  trigger_guard_condition()
+  provide_intra_process_message(ConstMessageSharedPtr message)
   {
-    rcl_ret_t ret = rcl_trigger_guard_condition(&gc_);
-    (void)ret;
+    buffer_->add(message);
+    trigger_guard_condition();
   }
 
-  std::shared_ptr<intra_process_buffer::IntraProcessBufferBase>
-  get_intra_process_buffer()
+  void
+  provide_intra_process_message(MessageUniquePtr message)
   {
-    return buffer_;
+    buffer_->add(std::move(message));
+    trigger_guard_condition();
   }
 
   bool
@@ -157,12 +164,31 @@ public:
     return buffer_->use_take_shared_method();
   }
 
+  const char*
+  get_topic_name() const
+  {
+    return subscription_->get_topic_name();
+  }
+
+  rmw_qos_profile_t
+  get_actual_qos() const
+  {
+    return subscription_->get_actual_qos();
+  }
+
 private:
+  void
+  trigger_guard_condition()
+  {
+    rcl_ret_t ret = rcl_trigger_guard_condition(&gc_);
+    (void)ret;
+  }
+
   std::recursive_mutex reentrant_mutex_;
   rcl_guard_condition_t gc_;
 
-  std::shared_ptr<SubscriptionT> subscription_;
-  std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer_;
+  SubscriptionPtr subscription_;
+  BufferPtr buffer_;
 };
 
 }  // namespace rclcpp

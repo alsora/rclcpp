@@ -32,7 +32,7 @@ namespace rclcpp
   template<
     typename MessageT,
     typename Alloc>
-  std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>>
+  typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr
   create_intra_process_buffer(
     IntraProcessBufferType buffer_type,
     const rcl_subscription_options_t & options
@@ -52,7 +52,7 @@ namespace rclcpp
       buffer_size = 1000;
     }
 
-    std::shared_ptr<intra_process_buffer::IntraProcessBuffer<MessageT>> buffer;
+    typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr buffer;
 
     switch (buffer_type) {
       case IntraProcessBufferType::SharedPtr:
