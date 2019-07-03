@@ -29,6 +29,8 @@ namespace intra_process_buffer
 class IntraProcessBufferBase
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBufferBase)
+
   virtual bool has_data() const = 0;
   virtual void clear() = 0;
 };
@@ -37,6 +39,8 @@ template<typename MessageT>
 class IntraProcessBuffer : public IntraProcessBufferBase
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBuffer)
+
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT>;
 
@@ -57,6 +61,8 @@ template<
 class TypedIntraProcessBuffer : public IntraProcessBuffer<MessageT>
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS(TypedIntraProcessBuffer)
+
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT>;
   static_assert(std::is_same<BufferT, MessageT>::value ||
