@@ -1,4 +1,4 @@
-// Copyright 2015 Open Source Robotics Foundation, Inc.
+// Copyright 2019 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class PublisherBase;
 namespace intra_process_manager
 {
 
-/// This class facilitates intra process communication between nodes.
+/// This class performs intra process communication between nodes.
 /**
  * This class is used in the creation of publishers and subscriptions.
  * A singleton instance of this class is owned by a rclcpp::Context and a
@@ -52,74 +52,34 @@ namespace intra_process_manager
  * Nodes which do not have a common Context will not exchange intra process
  * messages because they will not share access to an instance of this class.
  *
- * When a Node creates a publisher or subscription, it will register them
- * with this class.
- * The node will also hook into the publisher's publish call
- * in order to do intra process related work.
+ * When a Node creates a subscription, it can also create an additional
+ * wrapper meant to receive intra process messages.
+ * This structure can be registered with this class.
+ * It is also allocated an id which is unique among all publishers
+ * and subscriptions in this process and that is associated to the subscription.
  *
- * When a publisher is created, it advertises on the topic the user provided,
- * as well as a "shadowing" topic of type rcl_interfaces/IntraProcessMessage.
- * For instance, if the user specified the topic '/namespace/chatter', then the
- * corresponding intra process topic might be '/namespace/chatter/_intra'.
- * The publisher is also allocated an id which is unique among all publishers
- * and subscriptions in this process.
- * Additionally, when registered with this class a ring buffer is created and
- * owned by this class as a temporary place to hold messages destined for intra
- * process subscriptions.
+ * When a Node creates a publisher, as before this can be registered with this class.
+ * This is required in order to publish messages intra-process.
+ * It is also allocated an id which is unique among all publishers
+ * and subscriptions in this process and that is associated to the publisher.
  *
- * When a subscription is created, it subscribes to the topic provided by the
- * user as well as to the corresponding intra process topic.
- * It is also gets a unique id from the singleton instance of this class which
- * is unique among publishers and subscriptions.
+ * When a publisher or a subscription are registered with this class, an internal
+ * structure is updated in order to store which of them can communicate.
+ * i.e. they have the same topic and compatible QoS.
  *
- * When the user publishes a message, the message is stored by calling
- * store_intra_process_message on this class.
- * The instance of that message is uniquely identified by a publisher id and a
- * message sequence number.
- * The publisher id, message sequence pair is unique with in the process.
- * At that point a list of the id's of intra process subscriptions which have
- * been registered with the singleton instance of this class are stored with
- * the message instance so that delivery is only made to those subscriptions.
- * Then an instance of rcl_interfaces/IntraProcessMessage is published to the
- * intra process topic which is specific to the topic specified by the user.
+ * When the user publishes a message, if intra-process communication is enabled
+ * on the publisher, the message is handed to this class.
+ * Using the publisher id, a list of recipients for the message is selected.
+ * For each item in the list, this class stores its intra-process wrapper.
  *
- * When an instance of rcl_interfaces/IntraProcessMessage is received by a
- * subscription, then it is handled by calling take_intra_process_message
- * on a singleton of this class.
- * The subscription passes a publisher id, message sequence pair which
- * uniquely identifies the message instance it was suppose to receive as well
- * as the subscriptions unique id.
- * If the message is still being held by this class and the subscription's id
- * is in the list of intended subscriptions then the message is returned.
- * If either of those predicates are not satisfied then the message is not
- * returned and the subscription does not call the users callback.
+ * The wrapper contains a buffer where published intra-process messages are stored
+ * until the subscription picks them up.
+ * Depending on the data type stored in the buffer, the subscription intra process
+ * can request ownership on the inserted messages.
  *
- * Since the publisher builds a list of destined subscriptions on publish, and
- * other requests are ignored, this class knows how many times a message
- * instance should be requested.
- * The final time a message is requested, the ownership is passed out of this
- * class and passed to the final subscription, effectively freeing space in
- * this class's internal storage.
- *
- * Since a topic is being used to ferry notifications about new intra process
- * messages between publishers and subscriptions, it is possible for that
- * notification to be lost.
- * It is also possible that a subscription which was available when publish was
- * called will no longer exist once the notification gets posted.
- * In both cases this might result in a message instance getting requested
- * fewer times than expected.
- * This is why the internal storage of this class is a ring buffer.
- * That way if a message is orphaned it will eventually be dropped from storage
- * when a new message instance is stored and will not result in a memory leak.
- *
- * However, since the storage system is finite, this also means that a message
- * instance might get displaced by an incoming message instance before all
- * interested parties have called take_intra_process_message.
- * Because of this the size of the internal storage should be carefully
- * considered.
- *
- * /TODO(wjwwood): update to include information about handling latching.
- * /TODO(wjwwood): consider thread safety of the class.
+ * Thus, when an intra-process message is published, this class knows how many
+ * intra-process subscriptions needs it and how many require ownership.
+ * This information allows to efficiently perform a minimum number of copies of the message.
  *
  * This class is neither CopyConstructable nor CopyAssignable.
  */
@@ -140,15 +100,12 @@ public:
 
   /// Register a subscription with the manager, returns subscriptions unique id.
   /**
-   * In addition to generating a unique intra process id for the subscription,
-   * this method also stores the topic name of the subscription.
+   * This method stores the subscription intra process object, together with
+   * the information of its wrapped subscription (i.e. topic name and QoS).
    *
-   * This method is normally called during the creation of a subscription,
-   * but after it creates the internal intra process rmw_subscription_t.
+   * In addition this generates a unique intra process id for the subscription,
    *
-   * This method will allocate memory.
-   *
-   * \param subscription the Subscription to register.
+   * \param subscription the SubscriptionIntraProcess to register.
    * \return an unsigned 64-bit integer which is the subscription's unique id.
    */
   RCLCPP_PUBLIC
@@ -168,25 +125,12 @@ public:
 
   /// Register a publisher with the manager, returns the publisher unique id.
   /**
-   * In addition to generating and returning a unique id for the publisher,
-   * this method creates internal ring buffer storage for "in-flight" intra
-   * process messages which are stored when store_intra_process_message is
-   * called with this publisher's unique id.
+   * This method stores the publisher intra process object, together with
+   * the information of its wrapped publisher (i.e. topic name and QoS).
    *
-   * The buffer_size must be less than or equal to the max uint64_t value.
-   * If the buffer_size is 0 then a buffer size is calculated using the
-   * publisher's QoS settings.
-   * The default is to use the depth field of the publisher's QoS.
-   * TODO(wjwwood): Consider doing depth *= 1.2, round up, or similar.
-   * TODO(wjwwood): Consider what to do for keep all.
-   *
-   * This method is templated on the publisher's message type so that internal
-   * storage of the same type can be allocated.
-   *
-   * This method will allocate memory.
+   * In addition this generates a unique intra process id for the publisher,
    *
    * \param publisher publisher to be registered with the manager.
-   * \param buffer_size if 0 (default) a size is calculated based on the QoS.
    * \return an unsigned 64-bit integer which is the publisher's unique id.
    */
   RCLCPP_PUBLIC
@@ -204,27 +148,20 @@ public:
   void
   remove_publisher(uint64_t intra_process_publisher_id);
 
-  /// Store a message in the manager, and return the message sequence number.
+  /// Publishes an intra-process message, passed as a shared pointer
   /**
-   * The given message is stored in internal storage using the given publisher
-   * id and the newly generated message sequence, which is also returned.
-   * The combination of publisher id and message sequence number can later
-   * be used with a subscription id to retrieve the message by calling
-   * take_intra_process_message.
-   * The number of times take_intra_process_message can be called with this
-   * unique pair of id's is determined by the number of subscriptions currently
-   * subscribed to the same topic and which share the same Context, i.e. once
-   * for each subscription which should receive the intra process message.
+   * This is one of the two methods for publishing intra-process.
    *
-   * The ownership of the incoming message is transfered to the internal
-   * storage in order to avoid copying the message data.
-   * Therefore, the message parameter will no longer contain the original
-   * message after calling this method.
-   * Instead it will either be a nullptr or it will contain the ownership of
-   * the message instance which was displaced.
-   * If the message parameter is not equal to nullptr after calling this method
-   * then a message was prematurely displaced, i.e. take_intra_process_message
-   * had not been called on it as many times as was expected.
+   * Using the intra-process publisher id, a list of recipients is obtained.
+   * This list is split in half, depending whether they require ownership or not.
+   *
+   * This particular method takes a shared pointer as input.
+   * This can be safely passed to all the subscriptions that do not require ownership.
+   * No copies are needed in this case.
+   * For every subscription requiring ownership, a copy has to be made.
+   *
+   * The total number of copies is always equal to the number
+   * of subscriptions requiring ownership.
    *
    * This method can throw an exception if the publisher id is not found or
    * if the publisher shared_ptr given to add_publisher has gone out of scope.
@@ -233,7 +170,6 @@ public:
    *
    * \param intra_process_publisher_id the id of the publisher of this message.
    * \param message the message that is being stored.
-   * \return the message sequence number.
    */
   template<typename MessageT>
   void
@@ -274,6 +210,29 @@ public:
     }
   }
 
+  /// Publishes an intra-process message, passed as a unique pointer
+  /**
+   * This is one of the two methods for publishing intra-process.
+   *
+   * Using the intra-process publisher id, a list of recipients is obtained.
+   * This list is split in half, depending whether they require ownership or not.
+   *
+   * This particular method takes a unique pointer as input.
+   * The pointer can be promoted to a shared pointer and passed to all the subscriptions
+   * that do not require ownership.
+   * In case of subscriptions requiring ownership, the message will be copied for all of
+   * them except the last one, when ownership can be transferred.
+   *
+   * This method can save an additional copy compared to the shared pointer one.
+   *
+   * This method can throw an exception if the publisher id is not found or
+   * if the publisher shared_ptr given to add_publisher has gone out of scope.
+   *
+   * This method does allocate memory.
+   *
+   * \param intra_process_publisher_id the id of the publisher of this message.
+   * \param message the message that is being stored.
+   */
   template<
     typename MessageT,
     typename Deleter = std::default_delete<MessageT>>

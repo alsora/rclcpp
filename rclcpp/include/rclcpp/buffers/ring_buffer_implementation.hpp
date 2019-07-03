@@ -56,7 +56,6 @@ public:
   void enqueue(BufferT request)
   {
     assert(!is_full());
-
     std::unique_lock<std::mutex> lock(mutex_);
 
     ring_buffer_[write_] = std::move(request);
@@ -71,12 +70,15 @@ public:
   void dequeue(BufferT & request)
   {
     assert(has_data());
+    std::unique_lock<std::mutex> lock(mutex_);
 
     request = std::move(ring_buffer_[read_]);
     read_++;
     if (read_ == size_) {
       read_ = 0;
     }
+
+    lock.unlock();
   }
 
   bool has_data() const
