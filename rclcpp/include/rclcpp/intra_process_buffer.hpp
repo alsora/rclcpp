@@ -83,7 +83,7 @@ public:
 
   void add(ConstMessageSharedPtr msg)
   {
-    add_message<BufferT>(msg);
+    add_message<BufferT>(std::move(msg));
   }
 
   void add(MessageUniquePtr msg)
@@ -135,9 +135,7 @@ private:
   >::type
   add_message(MessageT msg)
   {
-    // is there a better way?
-    auto shared_msg = std::make_shared<MessageT>(msg);
-    buffer_->enqueue(shared_msg);
+    buffer_->enqueue(std::make_shared<MessageT>(msg));
   }
 
   // MessageT to MessageUniquePtr
@@ -147,7 +145,6 @@ private:
   >::type
   add_message(MessageT msg)
   {
-    // is there a better way?
     auto unique_msg = std::make_unique<MessageT>(msg);
     buffer_->enqueue(std::move(unique_msg));
   }
@@ -171,7 +168,7 @@ private:
   >::type
   add_message(ConstMessageSharedPtr shared_msg)
   {
-    buffer_->enqueue(shared_msg);
+    buffer_->enqueue(std::move(shared_msg));
   }
 
   // shared_ptr to MessageUniquePtr
@@ -181,11 +178,8 @@ private:
   >::type
   add_message(ConstMessageSharedPtr shared_msg)
   {
-    (void)shared_msg;
-    /**
-     * This function should not be used.
-     */
-    throw std::runtime_error("add_message(ConstMessageSharedPtr) for MessageUniquePtr buffer");
+    auto unique_msg = std::make_unique<MessageT>(*shared_msg);
+    buffer_->enqueue(std::move(unique_msg));
   }
 
   // shared_ptr to MessageT
@@ -207,7 +201,6 @@ private:
   >::type
   add_message(MessageUniquePtr unique_msg)
   {
-    // should I cast it before?
     buffer_->enqueue(std::move(unique_msg));
   }
 
