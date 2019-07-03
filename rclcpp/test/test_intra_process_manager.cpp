@@ -670,6 +670,7 @@ TEST(TestIntraProcessManager, multiple_subscriptions_different_type) {
   ASSERT_EQ(original_message_pointer, received_message_pointer_11);
 }
 
+/*
 TEST(TestIntraProcessManager, transient_local) {
   using IntraProcessManagerT = rclcpp::intra_process_manager::IntraProcessManager;
   using MessageT = rcl_interfaces::msg::Log;
@@ -705,3 +706,4 @@ TEST(TestIntraProcessManager, transient_local) {
   auto received_message_pointer = s1->pop();
   ASSERT_EQ(original_message_pointer, received_message_pointer);
 }
+*/
