@@ -168,10 +168,6 @@ public:
           auto subscription = weak_subscription.lock();
           if (subscription) {
             subscription_handles_.push_back(subscription->get_subscription_handle());
-            if (subscription->get_intra_process_subscription_handle()) {
-              subscription_handles_.push_back(
-                subscription->get_intra_process_subscription_handle());
-            }
           }
         }
         for (auto & weak_service : group->get_service_ptrs()) {
@@ -271,11 +267,6 @@ public:
     while (it != subscription_handles_.end()) {
       auto subscription = get_subscription_by_handle(*it, weak_nodes);
       if (subscription) {
-        // Figure out if this is for intra-process or not.
-        bool is_intra_process = false;
-        if (subscription->get_intra_process_subscription_handle()) {
-          is_intra_process = subscription->get_intra_process_subscription_handle() == *it;
-        }
         // Find the group for this handle and see if it can be serviced
         auto group = get_group_by_subscription(subscription, weak_nodes);
         if (!group) {
@@ -291,11 +282,7 @@ public:
           continue;
         }
         // Otherwise it is safe to set and return the any_exec
-        if (is_intra_process) {
-          any_exec.subscription_intra_process = subscription;
-        } else {
-          any_exec.subscription = subscription;
-        }
+        any_exec.subscription = subscription;
         any_exec.callback_group = group;
         any_exec.node_base = get_node_by_group(group, weak_nodes);
         subscription_handles_.erase(it);

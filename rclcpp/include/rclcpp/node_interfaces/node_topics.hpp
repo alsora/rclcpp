@@ -63,13 +63,20 @@ public:
   create_subscription(
     const std::string & topic_name,
     const rclcpp::SubscriptionFactory & subscription_factory,
-    const rcl_subscription_options_t & subscription_options,
-    bool use_intra_process) override;
+    const rcl_subscription_options_t & subscription_options) override;
+
+  RCLCPP_PUBLIC
+  rclcpp::SubscriptionIntraProcessBase::SharedPtr
+  create_subscription_intra_process(
+    rclcpp::SubscriptionBase::SharedPtr sub,
+    rclcpp::intra_process_buffer::IntraProcessBufferBase::SharedPtr buffer,
+    const rclcpp::SubscriptionFactory & subscription_factory) override;
 
   RCLCPP_PUBLIC
   void
   add_subscription(
     rclcpp::SubscriptionBase::SharedPtr subscription,
+    rclcpp::SubscriptionIntraProcessBase::SharedPtr subscription_intra_process,
     rclcpp::callback_group::CallbackGroup::SharedPtr callback_group) override;
 
   RCLCPP_PUBLIC

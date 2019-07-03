@@ -55,14 +55,13 @@ struct SubscriptionFactory
 
   SubscriptionFactoryFunction create_typed_subscription;
 
-  // Function that takes a MessageT from the intra process manager
-  using SetupIntraProcessFunction = std::function<
-    void (
-      rclcpp::intra_process_manager::IntraProcessManager::SharedPtr ipm,
-      rclcpp::SubscriptionBase::SharedPtr subscription,
-      const rcl_subscription_options_t & subscription_options)>;
+  // Creates a SubscriptionIntraProcess<MessageT> object and returns it as a SubscriptionIntraProcessBase.
+  using SubscriptionIntraProcessFactoryFunction =
+    std::function<rclcpp::SubscriptionIntraProcessBase::SharedPtr(
+    rclcpp::SubscriptionBase::SharedPtr sub_base,
+    std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer_base)>;
 
-  SetupIntraProcessFunction setup_intra_process;
+  SubscriptionIntraProcessFactoryFunction create_typed_subscription_intra_process;
 };
 
 /// Return a SubscriptionFactory with functions for creating a SubscriptionT<MessageT, Alloc>.
@@ -115,6 +114,30 @@ create_subscription_factory(
         msg_mem_strat);
       auto sub_base_ptr = std::dynamic_pointer_cast<SubscriptionBase>(sub);
       return sub_base_ptr;
+    };
+
+    factory.create_typed_subscription_intra_process =
+    [](
+    rclcpp::SubscriptionBase::SharedPtr sub_base,
+    std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer_base
+    ) -> rclcpp::SubscriptionIntraProcessBase::SharedPtr
+    {
+      using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
+      using rclcpp::SubscriptionIntraProcessBase;
+
+      auto buffer =
+        std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
+
+      auto sub =
+        std::static_pointer_cast<SubscriptionT>(sub_base);
+
+      auto sub_intra_process =
+        std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(sub, buffer);
+
+      auto sub_intra_process_base_ptr =
+        std::dynamic_pointer_cast<SubscriptionIntraProcessBase>(sub_intra_process);
+
+      return sub_intra_process_base_ptr;
     };
 
   // return the factory now that it is populated

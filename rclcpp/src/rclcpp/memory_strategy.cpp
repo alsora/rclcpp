@@ -38,9 +38,6 @@ MemoryStrategy::get_subscription_by_handle(
           if (subscription->get_subscription_handle() == subscriber_handle) {
             return subscription;
           }
-          if (subscription->get_intra_process_subscription_handle() == subscriber_handle) {
-            return subscription;
-          }
         }
       }
     }

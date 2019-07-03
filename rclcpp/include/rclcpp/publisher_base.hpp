@@ -28,7 +28,6 @@
 #include "rcl/publisher.h"
 
 #include "rclcpp/macros.hpp"
-#include "rclcpp/mapped_ring_buffer.hpp"
 #include "rclcpp/qos_event.hpp"
 #include "rclcpp/type_support_decl.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -182,18 +181,12 @@ public:
   using IntraProcessManagerSharedPtr =
     std::shared_ptr<rclcpp::intra_process_manager::IntraProcessManager>;
 
-  /// Implementation utility function that creates a typed mapped ring buffer.
-  RCLCPP_PUBLIC
-  mapped_ring_buffer::MappedRingBufferBase::SharedPtr
-  virtual make_mapped_ring_buffer(size_t size) const;
-
   /// Implementation utility function used to setup intra process publishing after creation.
   RCLCPP_PUBLIC
   void
   setup_intra_process(
     uint64_t intra_process_publisher_id,
-    IntraProcessManagerSharedPtr ipm,
-    const rcl_publisher_options_t & intra_process_options);
+    IntraProcessManagerSharedPtr ipm);
 
 protected:
   template<typename EventCallbackT>
@@ -213,7 +206,6 @@ protected:
   std::shared_ptr<rcl_node_t> rcl_node_handle_;
 
   rcl_publisher_t publisher_handle_ = rcl_get_zero_initialized_publisher();
-  rcl_publisher_t intra_process_publisher_handle_ = rcl_get_zero_initialized_publisher();
 
   std::vector<std::shared_ptr<rclcpp::QOSEventHandlerBase>> event_handlers_;
 

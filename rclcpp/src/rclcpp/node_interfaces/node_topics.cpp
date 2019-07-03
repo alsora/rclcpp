@@ -51,15 +51,14 @@ NodeTopics::create_publisher(
       throw std::invalid_argument(
               "intraprocess communication is not allowed with keep all history qos policy");
     }
-    if (publisher_options.qos.depth == 0) {
+    if (publisher_options.qos.durability != RMW_QOS_POLICY_DURABILITY_VOLATILE) {
       throw std::invalid_argument(
-              "intraprocess communication is not allowed with a zero qos history depth value");
+              "intraprocess communication allowed only with volatile durability");
     }
     uint64_t intra_process_publisher_id = ipm->add_publisher(publisher);
     publisher->setup_intra_process(
       intra_process_publisher_id,
-      ipm,
-      publisher_options);
+      ipm);
   }
 
   // Return the completed publisher.
@@ -99,30 +98,40 @@ rclcpp::SubscriptionBase::SharedPtr
 NodeTopics::create_subscription(
   const std::string & topic_name,
   const rclcpp::SubscriptionFactory & subscription_factory,
-  const rcl_subscription_options_t & subscription_options,
-  bool use_intra_process)
+  const rcl_subscription_options_t & subscription_options)
 {
   auto subscription = subscription_factory.create_typed_subscription(
     node_base_, topic_name, subscription_options);
-
-  // Setup intra process publishing if requested.
-  if (use_intra_process) {
-    auto context = node_base_->get_context();
-    auto ipm =
-      context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
-    uint64_t intra_process_subscription_id = ipm->add_subscription(subscription);
-    auto options_copy = subscription_options;
-    options_copy.ignore_local_publications = false;
-    subscription->setup_intra_process(intra_process_subscription_id, ipm, options_copy);
-  }
-
   // Return the completed subscription.
   return subscription;
+}
+
+rclcpp::SubscriptionIntraProcessBase::SharedPtr
+NodeTopics::create_subscription_intra_process(
+  rclcpp::SubscriptionBase::SharedPtr subscription,
+  std::shared_ptr<rclcpp::intra_process_buffer::IntraProcessBufferBase> buffer,
+  const rclcpp::SubscriptionFactory & subscription_factory)
+{
+  auto context = node_base_->get_context();
+  auto ipm =
+    context->get_sub_context<rclcpp::intra_process_manager::IntraProcessManager>();
+
+  auto subscription_intra_process = subscription_factory.create_typed_subscription_intra_process(
+    subscription, buffer);
+
+  uint64_t intra_process_subscription_id = ipm->add_subscription(subscription_intra_process);
+
+  subscription->setup_intra_process(
+    intra_process_subscription_id,
+    ipm);
+
+  return subscription_intra_process;
 }
 
 void
 NodeTopics::add_subscription(
   rclcpp::SubscriptionBase::SharedPtr subscription,
+  rclcpp::SubscriptionIntraProcessBase::SharedPtr subscription_intra_process,
   rclcpp::callback_group::CallbackGroup::SharedPtr callback_group)
 {
   // Assign to a group.
@@ -138,6 +147,10 @@ NodeTopics::add_subscription(
   callback_group->add_subscription(subscription);
   for (auto & subscription_event : subscription->get_event_handlers()) {
     callback_group->add_waitable(subscription_event);
+  }
+
+  if (subscription_intra_process != nullptr) {
+    callback_group->add_waitable(subscription_intra_process);
   }
 
   // Notify the executor that a new subscription was created using the parent Node.
