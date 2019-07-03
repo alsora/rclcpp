@@ -153,10 +153,6 @@ public:
     uint64_t intra_process_subscription_id,
     IntraProcessManagerWeakPtr weak_ipm);
 
-/*
-  virtual void
-  handle_intra_process_late_joiner() = 0;
- */
   virtual bool
   use_take_shared_method() = 0;
 
@@ -174,6 +170,9 @@ protected:
       event_type);
     event_handlers_.emplace_back(handler);
   }
+
+  bool
+  matches_any_intra_process_publishers(const rmw_gid_t * sender_gid);
 
   std::shared_ptr<rcl_node_t> node_handle_;
   std::shared_ptr<rcl_subscription_t> subscription_handle_;

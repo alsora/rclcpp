@@ -164,10 +164,19 @@ void SubscriptionBase::set_intra_process_manager(
   intra_process_subscription_id_ = intra_process_subscription_id;
   weak_ipm_ = weak_ipm;
   use_intra_process_ = true;
+}
 
-  /*
-  if (get_actual_qos().durability == RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) {
-    handle_intra_process_late_joiner();
+bool
+SubscriptionBase::matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)
+{
+  if (!use_intra_process_) {
+    return false;
   }
-   */
+  auto ipm = weak_ipm_.lock();
+  if (!ipm) {
+    throw std::runtime_error(
+            "intra process publisher check called "
+            "after destruction of intra process manager");
+  }
+  return ipm->matches_any_publishers(sender_gid);
 }
