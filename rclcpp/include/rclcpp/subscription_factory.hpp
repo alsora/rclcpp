@@ -60,9 +60,9 @@ struct SubscriptionFactory
   // Creates a SubscriptionIntraProcess<MessageT> object and returns it as a base.
   using SubscriptionIntraProcessFactoryFunction =
     std::function<rclcpp::SubscriptionIntraProcessBase::SharedPtr(
-      rclcpp::SubscriptionBase::SharedPtr sub_base,
-      rclcpp::IntraProcessBufferType buffer_type,
-      const rcl_subscription_options_t & subscription_options)>;
+        rclcpp::SubscriptionBase::SharedPtr sub_base,
+        rclcpp::IntraProcessBufferType buffer_type,
+        const rcl_subscription_options_t & subscription_options)>;
 
   SubscriptionIntraProcessFactoryFunction create_typed_subscription_intra_process;
 };

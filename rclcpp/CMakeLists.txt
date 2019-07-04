@@ -196,6 +196,16 @@ if(BUILD_TESTING)
       "rosidl_typesupport_cpp"
     )
   endif()
+  ament_add_gtest(test_ring_buffer_implementation test/test_ring_buffer_implementation.cpp)
+  if(TARGET test_ring_buffer_implementation)
+    ament_target_dependencies(test_ring_buffer_implementation
+      "rcl_interfaces"
+      "rmw"
+      "rosidl_generator_cpp"
+      "rosidl_typesupport_cpp"
+    )
+    target_link_libraries(test_ring_buffer_implementation ${PROJECT_NAME})
+  endif()
   ament_add_gtest(test_node test/test_node.cpp)
   if(TARGET test_node)
     ament_target_dependencies(test_node

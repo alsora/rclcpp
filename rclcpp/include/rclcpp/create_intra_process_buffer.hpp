@@ -1,4 +1,3 @@
-
 // Copyright 2019 Open Source Robotics Foundation, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,4 +90,4 @@ create_intra_process_buffer(
 
 }  // namespace rclcpp
 
-#endif // RCLCPP__CREATE_INTRA_PROCESS_BUFFER_HPP_
+#endif  // RCLCPP__CREATE_INTRA_PROCESS_BUFFER_HPP_

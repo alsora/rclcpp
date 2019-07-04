@@ -29,8 +29,6 @@
 
 #include "iostream"
 
-// https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/
-
 namespace rclcpp
 {
 namespace intra_process_buffer
@@ -41,11 +39,14 @@ class RingBufferImplementation : public BufferImplementationBase<BufferT>
 {
 public:
   explicit RingBufferImplementation(size_t size)
-  : ring_buffer_(size), read_(0), write_(0)
+  : ring_buffer_(size)
   {
-    size_ = ring_buffer_.size();
+    _bufferSize = size;
+    write_ = _bufferSize - 1;
+    read_ = 0;
+    _length = 0;
 
-    if (size_ == 0) {
+    if (size == 0) {
       throw std::invalid_argument("size must be a positive, non-zero value");
     }
   }
@@ -54,13 +55,16 @@ public:
 
   void enqueue(BufferT request)
   {
-    assert(!is_full());
     std::unique_lock<std::mutex> lock(mutex_);
 
+    write_ = next(write_);
     ring_buffer_[write_] = std::move(request);
-    write_++;
-    if (write_ == size_) {
-      write_ = 0;
+
+    if (is_full()) {
+      read_ = next(read_);
+    }
+    else {
+      _length++;
     }
 
     lock.unlock();
@@ -69,44 +73,46 @@ public:
   void dequeue(BufferT & request)
   {
     assert(has_data());
+
     std::unique_lock<std::mutex> lock(mutex_);
 
     request = std::move(ring_buffer_[read_]);
-    read_++;
-    if (read_ == size_) {
-      read_ = 0;
-    }
+    read_ = next(read_);
+
+    _length--;
 
     lock.unlock();
   }
 
+  inline uint32_t next(uint32_t val)
+  {
+    return (val + 1) % _bufferSize;
+  }
+
   bool has_data() const
   {
-    return read_ != write_;
+    return _length != 0;
+  }
+
+  inline bool is_full()
+  {
+    return _length == _bufferSize;
   }
 
   void clear() {}
 
-  uint32_t size()
-  {
-    return write_ - read_;
-  }
-
-  bool is_full()
-  {
-    return size() == size_;
-  }
-
 private:
   std::vector<BufferT> ring_buffer_;
-  size_t size_;
-  uint32_t read_;
+
   uint32_t write_;
+  uint32_t read_;
+  uint32_t _length;
+  uint32_t _bufferSize;
 
   std::mutex mutex_;
 };
 
 }  // namespace intra_process_buffer
-} // namespace rclcpp
+}  // namespace rclcpp
 
 #endif  // RCLCPP__BUFFERS__RING_BUFFER_IMPLEMENTATION_HPP_
