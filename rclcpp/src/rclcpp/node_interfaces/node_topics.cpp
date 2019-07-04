@@ -172,7 +172,7 @@ NodeTopics::add_subscription(
     auto subscription_intra_process =
       ipm->get_subscription_intra_process(subscription->get_intra_process_id());
 
-    // Add the subscription intra-process to the callback group to be notified about intra-process msgs.
+    // Add to the callback group to be notified about intra-process msgs.
     callback_group->add_waitable(subscription_intra_process);
   }
 

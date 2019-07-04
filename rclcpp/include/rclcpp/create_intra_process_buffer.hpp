@@ -29,65 +29,65 @@
 namespace rclcpp
 {
 
-  template<
-    typename MessageT,
-    typename Alloc>
-  typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr
-  create_intra_process_buffer(
-    IntraProcessBufferType buffer_type,
-    const rcl_subscription_options_t & options
-  )
-  {
-    using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
-    using MessageAlloc = typename MessageAllocTraits::allocator_type;
-    using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
-    using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
-    using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
+template<
+  typename MessageT,
+  typename Alloc>
+typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr
+create_intra_process_buffer(
+  IntraProcessBufferType buffer_type,
+  const rcl_subscription_options_t & options
+)
+{
+  using MessageAllocTraits = allocator::AllocRebind<MessageT, Alloc>;
+  using MessageAlloc = typename MessageAllocTraits::allocator_type;
+  using MessageDeleter = allocator::Deleter<MessageAlloc, MessageT>;
+  using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
+  using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
-    size_t buffer_size = options.qos.depth;
+  size_t buffer_size = options.qos.depth;
 
-    typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr buffer;
+  typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr buffer;
 
-    switch (buffer_type) {
-      case IntraProcessBufferType::SharedPtr:
-        {
-          using BufferT = ConstMessageSharedPtr;
+  switch (buffer_type) {
+    case IntraProcessBufferType::SharedPtr:
+      {
+        using BufferT = ConstMessageSharedPtr;
 
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
-            buffer_size);
+        auto buffer_implementation =
+          std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
+          buffer_size);
 
-          // construct the intra_process_buffer
-          buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
-              BufferT>>(buffer_implementation);
+        // construct the intra_process_buffer
+        buffer =
+          std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
+            BufferT>>(buffer_implementation);
 
-          break;
-        }
-      case IntraProcessBufferType::UniquePtr:
-        {
-          using BufferT = MessageUniquePtr;
+        break;
+      }
+    case IntraProcessBufferType::UniquePtr:
+      {
+        using BufferT = MessageUniquePtr;
 
-          auto buffer_implementation =
-            std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
-            buffer_size);
+        auto buffer_implementation =
+          std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
+          buffer_size);
 
-          // construct the intra_process_buffer
-          buffer =
-            std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
-              BufferT>>(buffer_implementation);
+        // construct the intra_process_buffer
+        buffer =
+          std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
+            BufferT>>(buffer_implementation);
 
-          break;
-        }
-      default:
-        {
-          throw std::runtime_error("Unrecognized IntraProcessBufferType value");
-          break;
-        }
-    }
-
-    return buffer;
+        break;
+      }
+    default:
+      {
+        throw std::runtime_error("Unrecognized IntraProcessBufferType value");
+        break;
+      }
   }
+
+  return buffer;
+}
 
 }  // namespace rclcpp
 

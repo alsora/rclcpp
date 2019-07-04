@@ -159,6 +159,7 @@ public:
 
   virtual bool
   use_take_shared_method() = 0;
+
 protected:
   template<typename EventCallbackT>
   void

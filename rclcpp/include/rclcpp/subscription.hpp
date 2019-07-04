@@ -167,7 +167,8 @@ public:
   }
 
   bool
-  use_take_shared_method()  {
+  use_take_shared_method()
+  {
     return any_callback_.use_take_shared_method();
   }
 

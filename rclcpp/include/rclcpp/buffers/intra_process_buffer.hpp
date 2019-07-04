@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RCLCPP__BUFFERS_INTRA_PROCESS_BUFFER_HPP_
-#define RCLCPP__BUFFERS_INTRA_PROCESS_BUFFER_HPP_
+#ifndef RCLCPP__BUFFERS__INTRA_PROCESS_BUFFER_HPP_
+#define RCLCPP__BUFFERS__INTRA_PROCESS_BUFFER_HPP_
 
 #include <memory>
 #include <type_traits>
@@ -31,8 +31,10 @@ class IntraProcessBufferBase
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(IntraProcessBufferBase)
 
-  virtual bool has_data() const = 0;
   virtual void clear() = 0;
+
+  virtual bool has_data() const = 0;
+  virtual bool use_take_shared_method() const = 0;
 };
 
 template<typename MessageT>
@@ -49,8 +51,6 @@ public:
 
   virtual void consume(ConstMessageSharedPtr & msg) = 0;
   virtual void consume(MessageUniquePtr & msg) = 0;
-
-  virtual bool use_take_shared_method() const = 0;
 };
 
 template<
@@ -205,4 +205,4 @@ private:
 }  // namespace rclcpp
 
 
-#endif  // RCLCPP__BUFFERS_INTRA_PROCESS_BUFFER_HPP_
+#endif  // RCLCPP__BUFFERS__INTRA_PROCESS_BUFFER_HPP_

@@ -62,7 +62,7 @@ public:
   virtual bool
   use_take_shared_method() const = 0;
 
-  virtual const char*
+  virtual const char *
   get_topic_name() const = 0;
 
   virtual rmw_qos_profile_t
@@ -160,7 +160,7 @@ public:
     return buffer_->use_take_shared_method();
   }
 
-  const char*
+  const char *
   get_topic_name() const
   {
     return subscription_->get_topic_name();

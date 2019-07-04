@@ -293,7 +293,7 @@ public:
       auto ownership_subs = pair.second.take_ownership_subscriptions;
       auto shared_subs = pair.second.take_shared_subscriptions;
       if (ownership_subs.find(intra_process_subscription_id) != ownership_subs.end() ||
-          shared_subs.find(intra_process_subscription_id) != shared_subs.end())
+        shared_subs.find(intra_process_subscription_id) != shared_subs.end())
       {
         res.insert(publisher_id);
       }
@@ -307,7 +307,6 @@ public:
   {
     auto subscription_it = subscriptions_.find(intra_process_subscription_id);
     if (subscription_it == subscriptions_.end()) {
-      std::cout<<"Looking for wrong sub id "<< intra_process_subscription_id<<std::endl;
       return std::shared_ptr<SubscriptionIntraProcessBase>(nullptr);
     } else {
       return subscription_it->second.subscription;

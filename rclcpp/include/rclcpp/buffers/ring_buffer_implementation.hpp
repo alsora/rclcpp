@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RCLCPP__BUFFERS_RING_BUFFER_IMPLEMENTATION_HPP_
-#define RCLCPP__BUFFERS_RING_BUFFER_IMPLEMENTATION_HPP_
+#ifndef RCLCPP__BUFFERS__RING_BUFFER_IMPLEMENTATION_HPP_
+#define RCLCPP__BUFFERS__RING_BUFFER_IMPLEMENTATION_HPP_
 
 #include <algorithm>
 #include <cstddef>
@@ -40,7 +40,6 @@ template<typename BufferT>
 class RingBufferImplementation : public BufferImplementationBase<BufferT>
 {
 public:
-
   explicit RingBufferImplementation(size_t size)
   : ring_buffer_(size), read_(0), write_(0)
   {
@@ -86,10 +85,7 @@ public:
     return read_ != write_;
   }
 
-  void clear()
-  {
-    return;
-  }
+  void clear() {}
 
   uint32_t size()
   {
@@ -113,4 +109,4 @@ private:
 }  // namespace intra_process_buffer
 } // namespace rclcpp
 
-#endif  // RCLCPP__BUFFERS_RING_BUFFER_IMPLEMENTATION_HPP_
+#endif  // RCLCPP__BUFFERS__RING_BUFFER_IMPLEMENTATION_HPP_

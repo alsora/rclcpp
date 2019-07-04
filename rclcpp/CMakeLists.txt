@@ -186,17 +186,7 @@ if(BUILD_TESTING)
       "rosidl_typesupport_cpp"
     )
   endif()
-  ament_add_gtest(test_mapped_ring_buffer test/test_mapped_ring_buffer.cpp)
-  if(TARGET test_mapped_ring_buffer)
-    ament_target_dependencies(test_mapped_ring_buffer
-      "rcl"
-      "rcl_interfaces"
-      "rmw"
-      "rosidl_generator_cpp"
-      "rosidl_typesupport_cpp"
-    )
-  endif()
-  ament_add_gtest(test_intra_process_manager test/test_intra_process_manager.cpp)
+  ament_add_gmock(test_intra_process_manager test/test_intra_process_manager.cpp)
   if(TARGET test_intra_process_manager)
     ament_target_dependencies(test_intra_process_manager
       "rcl"
