@@ -206,6 +206,16 @@ if(BUILD_TESTING)
     )
     target_link_libraries(test_ring_buffer_implementation ${PROJECT_NAME})
   endif()
+  ament_add_gtest(test_intra_process_buffer test/test_intra_process_buffer.cpp)
+  if(TARGET test_intra_process_buffer)
+    ament_target_dependencies(test_intra_process_buffer
+      "rcl_interfaces"
+      "rmw"
+      "rosidl_generator_cpp"
+      "rosidl_typesupport_cpp"
+    )
+    target_link_libraries(test_intra_process_buffer ${PROJECT_NAME})
+  endif()
   ament_add_gtest(test_node test/test_node.cpp)
   if(TARGET test_node)
     ament_target_dependencies(test_node
