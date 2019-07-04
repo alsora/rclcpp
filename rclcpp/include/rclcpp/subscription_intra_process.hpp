@@ -88,12 +88,12 @@ public:
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT, MessageDeleter>;
 
-  using BufferPtr = typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr;
-  using SubscriptionPtr = typename Subscription<MessageT, Alloc>::SharedPtr;
+  using BufferSharedPtr = typename intra_process_buffer::IntraProcessBuffer<MessageT>::SharedPtr;
+  using SubscriptionSharedPtr = typename Subscription<MessageT, Alloc>::SharedPtr;
 
   SubscriptionIntraProcess(
-    SubscriptionPtr subscription,
-    BufferPtr buffer)
+    SubscriptionSharedPtr subscription,
+    BufferSharedPtr buffer)
   : subscription_(subscription), buffer_(buffer)
   {
     std::shared_ptr<rclcpp::Context> context_ptr =
@@ -107,7 +107,7 @@ public:
       &gc_, context_ptr->get_rcl_context().get(), guard_condition_options);
 
     if (RCL_RET_OK != ret) {
-      throw std::runtime_error("IntraProcessWaitable init error initializing guard condition");
+      throw std::runtime_error("SubscriptionIntraProcess init error initializing guard condition");
     }
   }
 
@@ -183,8 +183,8 @@ private:
   std::recursive_mutex reentrant_mutex_;
   rcl_guard_condition_t gc_;
 
-  SubscriptionPtr subscription_;
-  BufferPtr buffer_;
+  SubscriptionSharedPtr subscription_;
+  BufferSharedPtr buffer_;
 };
 
 }  // namespace rclcpp

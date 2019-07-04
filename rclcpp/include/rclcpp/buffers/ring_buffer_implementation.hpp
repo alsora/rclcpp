@@ -62,8 +62,7 @@ public:
 
     if (is_full()) {
       read_ = next(read_);
-    }
-    else {
+    } else {
       _length++;
     }
 

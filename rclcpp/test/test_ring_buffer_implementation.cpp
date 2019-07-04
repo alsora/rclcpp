@@ -25,9 +25,9 @@
    Construtctor
  */
 TEST(TestRingBufferImplementation, constructor) {
-
   // Cannot create a buffer of size zero.
-  EXPECT_THROW(rclcpp::intra_process_buffer::RingBufferImplementation<char> rb(0), std::invalid_argument);
+  EXPECT_THROW(
+    rclcpp::intra_process_buffer::RingBufferImplementation<char> rb(0), std::invalid_argument);
 
   rclcpp::intra_process_buffer::RingBufferImplementation<char> rb(1);
 
@@ -42,9 +42,7 @@ TEST(TestRingBufferImplementation, constructor) {
    - overwrite old data writing over the buffer capacity
  */
 TEST(TestRingBufferImplementation, basic_usage) {
-
   rclcpp::intra_process_buffer::RingBufferImplementation<char> rb(2);
-
 
   rb.enqueue('a');
 
