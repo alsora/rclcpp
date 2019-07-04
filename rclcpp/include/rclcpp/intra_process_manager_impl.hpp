@@ -83,9 +83,6 @@ public:
   virtual SubscriptionIntraProcessBase::SharedPtr
   get_subscription(uint64_t intra_process_subscription_id) = 0;
 
-  virtual PublisherBase::WeakPtr
-  get_publisher(uint64_t intra_process_publisher_id) = 0;
-
 private:
   RCLCPP_DISABLE_COPY(IntraProcessManagerImplBase)
 };
@@ -314,17 +311,6 @@ public:
       return std::shared_ptr<SubscriptionIntraProcessBase>(nullptr);
     } else {
       return subscription_it->second.subscription;
-    }
-  }
-
-  PublisherBase::WeakPtr
-  get_publisher(uint64_t intra_process_publisher_id)
-  {
-    auto publisher_it = publishers_.find(intra_process_publisher_id);
-    if (publisher_it == publishers_.end()) {
-      return std::shared_ptr<PublisherBase>(nullptr);
-    } else {
-      return publisher_it->second.publisher;
     }
   }
 };

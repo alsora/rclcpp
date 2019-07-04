@@ -24,8 +24,10 @@
 
 #include "rosidl_typesupport_cpp/message_type_support.hpp"
 
+#include "rclcpp/create_intra_process_buffer.hpp"
 #include "rclcpp/subscription.hpp"
 #include "rclcpp/subscription_traits.hpp"
+#include "rclcpp/intra_process_buffer_type.hpp"
 #include "rclcpp/intra_process_manager.hpp"
 #include "rclcpp/node_interfaces/node_base_interface.hpp"
 #include "rclcpp/visibility_control.hpp"
@@ -59,7 +61,8 @@ struct SubscriptionFactory
   using SubscriptionIntraProcessFactoryFunction =
     std::function<rclcpp::SubscriptionIntraProcessBase::SharedPtr(
     rclcpp::SubscriptionBase::SharedPtr sub_base,
-    std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer_base)>;
+    rclcpp::IntraProcessBufferType buffer_type,
+    const rcl_subscription_options_t & subscription_options)>;
 
   SubscriptionIntraProcessFactoryFunction create_typed_subscription_intra_process;
 };
@@ -119,14 +122,21 @@ create_subscription_factory(
     factory.create_typed_subscription_intra_process =
     [](
     rclcpp::SubscriptionBase::SharedPtr sub_base,
-    std::shared_ptr<intra_process_buffer::IntraProcessBufferBase> buffer_base
+    rclcpp::IntraProcessBufferType buffer_type,
+    const rcl_subscription_options_t & subscription_options
     ) -> rclcpp::SubscriptionIntraProcessBase::SharedPtr
     {
-      using IntraProcessBufferT = typename intra_process_buffer::IntraProcessBuffer<MessageT>;
-      using rclcpp::SubscriptionIntraProcessBase;
+      // If the user has not specified a type for the intra-process buffer, use the callback one.
+      if (buffer_type == IntraProcessBufferType::CallbackDefault) {
+        buffer_type = sub_base->use_take_shared_method() ?
+          IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
+      }
+      // Create the intra-process buffer.
+      auto buffer = rclcpp::create_intra_process_buffer<MessageT, Alloc>(
+        buffer_type,
+        subscription_options);
 
-      auto buffer =
-        std::static_pointer_cast<IntraProcessBufferT>(buffer_base);
+      using rclcpp::SubscriptionIntraProcessBase;
 
       auto sub =
         std::static_pointer_cast<SubscriptionT>(sub_base);

@@ -24,6 +24,7 @@
 
 #include "rclcpp/buffers/ring_buffer_implementation.hpp"
 #include "rclcpp/buffers/intra_process_buffer.hpp"
+#include "rclcpp/intra_process_buffer_type.hpp"
 
 namespace rclcpp
 {

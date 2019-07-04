@@ -265,6 +265,10 @@ public:
   size_t
   get_subscription_count(uint64_t intra_process_publisher_id) const;
 
+  RCLCPP_PUBLIC
+  SubscriptionIntraProcessBase::SharedPtr
+  get_subscription_intra_process(uint64_t intra_process_subscription_id);
+
 private:
   RCLCPP_PUBLIC
   static uint64_t

@@ -136,30 +136,10 @@ create_subscription(
   auto sub = node_topics->create_subscription(
     topic_name,
     factory,
-    options.template to_rcl_subscription_options<MessageT>(qos));
-
-  rclcpp::SubscriptionIntraProcessBase::SharedPtr sub_intra_process;
-  if (use_intra_process) {
-    IntraProcessBufferType buffer_type = options.intra_process_buffer_type;
-
-    // If the user has not specified a type for the intraprocess buffer, use the callback one
-    if (buffer_type == IntraProcessBufferType::CallbackDefault) {
-      buffer_type = sub->use_take_shared_method() ?
-        IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
-    }
-
-    // Create intra process buffer
-    auto buffer = rclcpp::create_intra_process_buffer<MessageT, AllocatorT>(
-      buffer_type,
-      options.template to_rcl_subscription_options<MessageT>(qos));
-
-    // Create intra process subscription
-    sub_intra_process = node_topics->create_subscription_intra_process(
-      sub,
-      buffer,
-      factory);
-  }
-  node_topics->add_subscription(sub, sub_intra_process, options.callback_group);
+    options.template to_rcl_subscription_options<MessageT>(qos),
+    use_intra_process,
+    options.intra_process_buffer_type);
+  node_topics->add_subscription(sub, use_intra_process, options.callback_group);
   return std::dynamic_pointer_cast<SubscriptionT>(sub);
 }
 

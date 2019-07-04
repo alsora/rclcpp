@@ -166,6 +166,12 @@ void SubscriptionBase::setup_intra_process(
   use_intra_process_ = true;
 }
 
+uint64_t
+SubscriptionBase::get_intra_process_id() const
+{
+  return intra_process_subscription_id_;
+}
+
 bool
 SubscriptionBase::matches_any_intra_process_publishers(const rmw_gid_t * sender_gid)
 {

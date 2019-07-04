@@ -71,6 +71,12 @@ IntraProcessManager::get_subscription_count(uint64_t intra_process_publisher_id)
   return impl_->get_subscription_count(intra_process_publisher_id);
 }
 
+SubscriptionIntraProcessBase::SharedPtr
+IntraProcessManager::get_subscription_intra_process(uint64_t intra_process_subscription_id)
+{
+  return impl_->get_subscription(intra_process_subscription_id);
+}
+
 uint64_t
 IntraProcessManager::get_next_unique_id()
 {
