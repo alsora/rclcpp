@@ -157,9 +157,6 @@ public:
   uint64_t
   get_intra_process_id() const;
 
-  virtual bool
-  use_take_shared_method() = 0;
-
 protected:
   template<typename EventCallbackT>
   void

@@ -120,7 +120,7 @@ create_subscription_factory(
     };
 
   factory.create_typed_subscription_intra_process =
-    [](
+    [any_subscription_callback](
     rclcpp::SubscriptionBase::SharedPtr sub_base,
     rclcpp::IntraProcessBufferType buffer_type,
     const rcl_subscription_options_t & subscription_options
@@ -128,7 +128,7 @@ create_subscription_factory(
     {
       // If the user has not specified a type for the intra-process buffer, use the callback one.
       if (buffer_type == IntraProcessBufferType::CallbackDefault) {
-        buffer_type = sub_base->use_take_shared_method() ?
+        buffer_type = any_subscription_callback.use_take_shared_method() ?
           IntraProcessBufferType::SharedPtr : IntraProcessBufferType::UniquePtr;
       }
       // Create the intra-process buffer.
