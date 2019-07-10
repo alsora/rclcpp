@@ -105,7 +105,7 @@ NodeTopics::create_subscription(
   bool use_intra_process,
   rclcpp::IntraProcessBufferType buffer_type)
 {
-  auto subscription = subscription_factory.create_typed_subscription(
+    auto subscription = subscription_factory.create_typed_subscription(
     node_base_, topic_name, subscription_options);
 
   // Setup intra process communication if requested.

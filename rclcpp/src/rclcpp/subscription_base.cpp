@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "rclcpp/exceptions.hpp"
 #include "rclcpp/expand_topic_or_service_name.hpp"
@@ -43,6 +44,7 @@ SubscriptionBase::SubscriptionBase(
 {
   auto custom_deletor = [node_handle](rcl_subscription_t * rcl_subs)
     {
+      std::cout<<"Calling subscription deletor"<<std::endl;
       if (rcl_subscription_fini(rcl_subs, node_handle.get()) != RCL_RET_OK) {
         RCLCPP_ERROR(
           rclcpp::get_node_logger(node_handle.get()).get_child("rclcpp"),
@@ -80,6 +82,8 @@ SubscriptionBase::SubscriptionBase(
 
 SubscriptionBase::~SubscriptionBase()
 {
+  std::cout<<"Subscription base destructor"<<std::endl;
+  /*
   if (!use_intra_process_) {
     return;
   }
@@ -92,6 +96,7 @@ SubscriptionBase::~SubscriptionBase()
     return;
   }
   ipm->remove_subscription(intra_process_subscription_id_);
+  */
 }
 
 const char *

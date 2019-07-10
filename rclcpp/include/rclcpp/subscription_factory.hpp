@@ -142,7 +142,11 @@ create_subscription_factory(
         std::static_pointer_cast<SubscriptionT>(sub_base);
 
       auto sub_intra_process =
-        std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(sub, buffer);
+        std::make_shared<SubscriptionIntraProcess<MessageT, Alloc>>(
+          any_subscription_callback,
+          buffer,
+          sub->get_topic_name(),
+          sub->get_actual_qos());
 
       auto sub_intra_process_base_ptr =
         std::dynamic_pointer_cast<SubscriptionIntraProcessBase>(sub_intra_process);
