@@ -67,16 +67,18 @@ public:
     }
   }
 
-  void dequeue(BufferT & request)
+  BufferT dequeue()
   {
     assert(has_data());
 
     std::lock_guard<std::mutex> lock(mutex_);
 
-    request = std::move(ring_buffer_[read_]);
+    auto request = std::move(ring_buffer_[read_]);
     read_ = next(read_);
 
     _length--;
+
+    return request;
   }
 
   inline uint32_t next(uint32_t val)

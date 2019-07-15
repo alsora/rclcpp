@@ -46,11 +46,11 @@ public:
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT>;
 
-  virtual void add(ConstMessageSharedPtr msg) = 0;
-  virtual void add(MessageUniquePtr msg) = 0;
+  virtual void add_shared(ConstMessageSharedPtr msg) = 0;
+  virtual void add_unique(MessageUniquePtr msg) = 0;
 
-  virtual void consume(ConstMessageSharedPtr & msg) = 0;
-  virtual void consume(MessageUniquePtr & msg) = 0;
+  virtual ConstMessageSharedPtr consume_shared() = 0;
+  virtual MessageUniquePtr consume_unique() = 0;
 };
 
 template<
@@ -73,24 +73,24 @@ public:
     buffer_ = buffer_impl;
   }
 
-  void add(ConstMessageSharedPtr msg)
+  void add_shared(ConstMessageSharedPtr msg)
   {
-    add_message<BufferT>(std::move(msg));
+    add_shared_impl<BufferT>(std::move(msg));
   }
 
-  void add(MessageUniquePtr msg)
+  void add_unique(MessageUniquePtr msg)
   {
-    add_message<BufferT>(std::move(msg));
+    add_unique_impl<BufferT>(std::move(msg));
   }
 
-  void consume(ConstMessageSharedPtr & msg)
+  ConstMessageSharedPtr consume_shared()
   {
-    consume_message<BufferT>(msg);
+    return consume_shared_impl<BufferT>();
   }
 
-  void consume(MessageUniquePtr & msg)
+  MessageUniquePtr consume_unique()
   {
-    consume_message<BufferT>(msg);
+    return consume_unique_impl<BufferT>();
   }
 
   bool has_data() const
@@ -120,7 +120,7 @@ private:
   typename std::enable_if<
     std::is_same<DestinationT, ConstMessageSharedPtr>::value
   >::type
-  add_message(ConstMessageSharedPtr shared_msg)
+  add_shared_impl(ConstMessageSharedPtr shared_msg)
   {
     buffer_->enqueue(std::move(shared_msg));
   }
@@ -130,7 +130,7 @@ private:
   typename std::enable_if<
     std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
-  add_message(ConstMessageSharedPtr shared_msg)
+  add_shared_impl(ConstMessageSharedPtr shared_msg)
   {
     auto unique_msg = std::make_unique<MessageT>(*shared_msg);
     buffer_->enqueue(std::move(unique_msg));
@@ -141,7 +141,7 @@ private:
   typename std::enable_if<
     std::is_same<DestinationT, ConstMessageSharedPtr>::value
   >::type
-  add_message(MessageUniquePtr unique_msg)
+  add_unique_impl(MessageUniquePtr unique_msg)
   {
     buffer_->enqueue(std::move(unique_msg));
   }
@@ -151,7 +151,7 @@ private:
   typename std::enable_if<
     std::is_same<DestinationT, MessageUniquePtr>::value
   >::type
-  add_message(MessageUniquePtr unique_msg)
+  add_unique_impl(MessageUniquePtr unique_msg)
   {
     buffer_->enqueue(std::move(unique_msg));
   }
@@ -159,45 +159,47 @@ private:
   // ConstMessageSharedPtr to ConstMessageSharedPtr
   template<typename OriginT>
   typename std::enable_if<
-    std::is_same<OriginT, ConstMessageSharedPtr>::value
+    (std::is_same<OriginT, ConstMessageSharedPtr>::value),
+    ConstMessageSharedPtr
   >::type
-  consume_message(ConstMessageSharedPtr & shared_msg)
+  consume_shared_impl()
   {
-    buffer_->dequeue(shared_msg);
+    return buffer_->dequeue();
   }
 
   // MessageUniquePtr to ConstMessageSharedPtr
   template<typename OriginT>
   typename std::enable_if<
-    std::is_same<OriginT, MessageUniquePtr>::value
+    (std::is_same<OriginT, MessageUniquePtr>::value),
+    ConstMessageSharedPtr
   >::type
-  consume_message(ConstMessageSharedPtr & shared_msg)
+  consume_shared_impl()
   {
-    MessageUniquePtr buffer_msg;
-    buffer_->dequeue(buffer_msg);
-    shared_msg = std::move(buffer_msg);
+    // automatic cast from unique ptr to shared ptr
+    return buffer_->dequeue();
   }
 
   // ConstMessageSharedPtr to MessageUniquePtr
   template<typename OriginT>
   typename std::enable_if<
-    std::is_same<OriginT, ConstMessageSharedPtr>::value
+    (std::is_same<OriginT, ConstMessageSharedPtr>::value),
+    MessageUniquePtr
   >::type
-  consume_message(MessageUniquePtr & unique_msg)
+  consume_unique_impl()
   {
-    ConstMessageSharedPtr buffer_msg;
-    buffer_->dequeue(buffer_msg);
-    unique_msg = std::make_unique<MessageT>(*buffer_msg);
+    ConstMessageSharedPtr buffer_msg = buffer_->dequeue();
+    return std::make_unique<MessageT>(*buffer_msg);
   }
 
   // MessageUniquePtr to MessageUniquePtr
   template<typename OriginT>
   typename std::enable_if<
-    std::is_same<OriginT, MessageUniquePtr>::value
+    (std::is_same<OriginT, MessageUniquePtr>::value),
+    MessageUniquePtr
   >::type
-  consume_message(MessageUniquePtr & unique_msg)
+  consume_unique_impl()
   {
-    buffer_->dequeue(unique_msg);
+    return buffer_->dequeue();
   }
 };
 

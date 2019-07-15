@@ -131,12 +131,10 @@ public:
   void execute()
   {
     if (any_callback_.use_take_shared_method()) {
-      ConstMessageSharedPtr msg;
-      buffer_->consume(msg);
+      ConstMessageSharedPtr msg = buffer_->consume_shared();
       any_callback_.dispatch_intra_process(msg, rmw_message_info_t());
     } else {
-      MessageUniquePtr msg;
-      buffer_->consume(msg);
+      MessageUniquePtr msg = buffer_->consume_unique();
       any_callback_.dispatch_intra_process(std::move(msg), rmw_message_info_t());
     }
   }
@@ -144,14 +142,14 @@ public:
   void
   provide_intra_process_message(ConstMessageSharedPtr message)
   {
-    buffer_->add(message);
+    buffer_->add_shared(message);
     trigger_guard_condition();
   }
 
   void
   provide_intra_process_message(MessageUniquePtr message)
   {
-    buffer_->add(std::move(message));
+    buffer_->add_unique(std::move(message));
     trigger_guard_condition();
   }
 
