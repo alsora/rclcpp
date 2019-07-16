@@ -142,7 +142,7 @@ public:
   void
   provide_intra_process_message(ConstMessageSharedPtr message)
   {
-    buffer_->add_shared(message);
+    buffer_->add_shared(std::move(message));
     trigger_guard_condition();
   }
 
