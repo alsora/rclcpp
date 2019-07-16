@@ -153,6 +153,13 @@ public:
     trigger_guard_condition();
   }
 
+  void
+  provide_intra_process_message(MessageT message)
+  {
+    buffer_->add_value(message);
+    trigger_guard_condition();
+  }
+
   bool
   use_take_shared_method() const
   {

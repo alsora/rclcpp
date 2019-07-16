@@ -132,13 +132,27 @@ public:
       // In this case we're not using intra process.
       return this->do_inter_process_publish(msg);
     }
+
     // Otherwise we have to allocate memory in a unique_ptr and pass it along.
     // As the message is not const, a copy should be made.
     // A shared_ptr<const MessageT> could also be constructed here.
+    /*
     auto ptr = MessageAllocTraits::allocate(*message_allocator_.get(), 1);
     MessageAllocTraits::construct(*message_allocator_.get(), ptr, msg);
     MessageUniquePtr unique_msg(ptr, message_deleter_);
     this->publish(std::move(unique_msg));
+    */
+
+    //Support for publishing intra-process by value
+    bool inter_process_publish_needed =
+      get_subscription_count() > get_intra_process_subscription_count();
+
+    if (inter_process_publish_needed) {
+      this->do_intra_process_publish(intra_process_publisher_id_, msg);
+      this->do_inter_process_publish(msg);
+    } else {
+      this->do_intra_process_publish(intra_process_publisher_id_, msg);
+    }
   }
 
 // Skip deprecated attribute in windows, as it raises a warning in template specialization.
@@ -253,6 +267,20 @@ protected:
     }
 
     ipm->template do_intra_process_publish<MessageT>(publisher_id, std::move(msg));
+  }
+
+  void
+  do_intra_process_publish(
+    uint64_t publisher_id,
+    MessageT msg)
+  {
+    auto ipm = weak_ipm_.lock();
+    if (!ipm) {
+      throw std::runtime_error(
+              "intra process publish called after destruction of intra process manager");
+    }
+
+    ipm->template do_intra_process_publish<MessageT>(publisher_id, msg);
   }
 
   std::shared_ptr<MessageAlloc> message_allocator_;

@@ -255,6 +255,32 @@ public:
     }
   }
 
+  template<
+    typename MessageT>
+  void
+  do_intra_process_publish(
+    uint64_t intra_process_publisher_id,
+    MessageT message)
+  {
+    std::unordered_set<uint64_t> take_shared_subscription_ids;
+    std::unordered_set<uint64_t> take_owned_subscription_ids;
+
+    impl_->get_subscription_ids_for_pub(
+      take_shared_subscription_ids,
+      take_owned_subscription_ids,
+      intra_process_publisher_id);
+
+    // merge the two vector of ids into a unique one
+    take_owned_subscription_ids.insert(
+      take_shared_subscription_ids.begin(), take_shared_subscription_ids.end());
+
+    this->template add_msg_to_buffers<MessageT>(
+      message,
+      take_owned_subscription_ids);
+  }
+
+
+
   /// Return true if the given rmw_gid_t matches any stored Publishers.
   RCLCPP_PUBLIC
   bool
@@ -318,6 +344,25 @@ private:
         std::unique_ptr<MessageT, Deleter> copy_message = std::make_unique<MessageT>(*message);
         subscription->provide_intra_process_message(std::move(copy_message));
       }
+    }
+  }
+
+  template<typename MessageT>
+  void
+  add_msg_to_buffers(
+    MessageT message,
+    std::unordered_set<uint64_t> subscription_ids)
+  {
+    for (auto it = subscription_ids.begin(); it != subscription_ids.end(); it++) {
+      auto subscription_base = impl_->get_subscription(*it);
+      if (subscription_base == nullptr) {
+        throw std::runtime_error("subscription has unexpectedly gone out of scope");
+      }
+
+      auto subscription =
+        std::static_pointer_cast<SubscriptionIntraProcess<MessageT>>(subscription_base);
+
+      subscription->provide_intra_process_message(message);
     }
   }
 

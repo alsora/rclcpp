@@ -26,6 +26,8 @@ enum class IntraProcessBufferType
   SharedPtr,
   /// Set the data type used in the intra-process buffer as std::unique_ptr<MessageT>
   UniquePtr,
+  /// Set the data type used in the intra-process buffer as MessageT
+  Value,
   /// Set the data type used in the intra-process buffer as the same used in the callback
   CallbackDefault
 };

@@ -48,9 +48,11 @@ public:
 
   virtual void add_shared(ConstMessageSharedPtr msg) = 0;
   virtual void add_unique(MessageUniquePtr msg) = 0;
+  virtual void add_value(MessageT msg) = 0;
 
   virtual ConstMessageSharedPtr consume_shared() = 0;
   virtual MessageUniquePtr consume_unique() = 0;
+  virtual MessageT consume_value() = 0;
 };
 
 template<
@@ -64,7 +66,8 @@ public:
   using ConstMessageSharedPtr = std::shared_ptr<const MessageT>;
   using MessageUniquePtr = std::unique_ptr<MessageT>;
   static_assert(std::is_same<BufferT, ConstMessageSharedPtr>::value ||
-    std::is_same<BufferT, MessageUniquePtr>::value,
+    std::is_same<BufferT, MessageUniquePtr>::value ||
+    std::is_same<BufferT, MessageT>::value,
     "BufferT is not a valid type");
 
   TypedIntraProcessBuffer(
@@ -83,6 +86,11 @@ public:
     add_unique_impl<BufferT>(std::move(msg));
   }
 
+  void add_value(MessageT msg)
+  {
+    add_value_impl<BufferT>(msg);
+  }
+
   ConstMessageSharedPtr consume_shared()
   {
     return consume_shared_impl<BufferT>();
@@ -91,6 +99,11 @@ public:
   MessageUniquePtr consume_unique()
   {
     return consume_unique_impl<BufferT>();
+  }
+
+  MessageT consume_value()
+  {
+    return consume_value_impl<BufferT>();
   }
 
   bool has_data() const
@@ -136,6 +149,17 @@ private:
     buffer_->enqueue(std::move(unique_msg));
   }
 
+  // ConstMessageSharedPtr to MessageT
+  template<typename DestinationT>
+  typename std::enable_if<
+    std::is_same<DestinationT, MessageT>::value
+  >::type
+  add_shared_impl(ConstMessageSharedPtr shared_msg)
+  {
+    std::cout<<"add_shared_impl should not be used"<<std::endl;
+    buffer_->enqueue(*shared_msg);
+  }
+
   // MessageUniquePtr to ConstMessageSharedPtr
   template<typename DestinationT>
   typename std::enable_if<
@@ -154,6 +178,47 @@ private:
   add_unique_impl(MessageUniquePtr unique_msg)
   {
     buffer_->enqueue(std::move(unique_msg));
+  }
+
+  // MessageUniquePtr to MessageT
+  template<typename DestinationT>
+  typename std::enable_if<
+    std::is_same<DestinationT, MessageT>::value
+  >::type
+  add_unique_impl(MessageUniquePtr unique_msg)
+  {
+    std::cout<<"add_unique_impl should not be used"<<std::endl;
+    buffer_->enqueue(*unique_msg);
+  }
+
+  // MessageT to ConstMessageSharedPtr
+  template<typename DestinationT>
+  typename std::enable_if<
+    std::is_same<DestinationT, ConstMessageSharedPtr>::value
+  >::type
+  add_value_impl(MessageT msg)
+  {
+    std::cout<<"add_value_impl to shared should not be used"<<std::endl;
+  }
+
+  // MessageT to MessageUniquePtr
+  template<typename DestinationT>
+  typename std::enable_if<
+    std::is_same<DestinationT, MessageUniquePtr>::value
+  >::type
+  add_value_impl(MessageT msg)
+  {
+    std::cout<<"add_value_impl to unique should not be used"<<std::endl;
+  }
+
+  // MessageT to MessageT
+  template<typename DestinationT>
+  typename std::enable_if<
+    std::is_same<DestinationT, MessageT>::value
+  >::type
+  add_value_impl(MessageT msg)
+  {
+    buffer_->enqueue(msg);
   }
 
   // ConstMessageSharedPtr to ConstMessageSharedPtr
@@ -179,6 +244,19 @@ private:
     return buffer_->dequeue();
   }
 
+  // MessageT to ConstMessageSharedPtr
+  template<typename OriginT>
+  typename std::enable_if<
+    (std::is_same<OriginT, MessageT>::value),
+    ConstMessageSharedPtr
+  >::type
+  consume_shared_impl()
+  {
+    std::cout<<"consume_shared_impl should not be used"<<std::endl;
+    auto msg = buffer_->dequeue();
+    return std::make_shared<MessageT>(msg);
+  }
+
   // ConstMessageSharedPtr to MessageUniquePtr
   template<typename OriginT>
   typename std::enable_if<
@@ -198,6 +276,54 @@ private:
     MessageUniquePtr
   >::type
   consume_unique_impl()
+  {
+    return buffer_->dequeue();
+  }
+
+  // MessageT to MessageUniquePtr
+  template<typename OriginT>
+  typename std::enable_if<
+    (std::is_same<OriginT, MessageT>::value),
+    MessageUniquePtr
+  >::type
+  consume_unique_impl()
+  {
+    //std::cout<<"consume_unique_impl should not be used"<<std::endl;
+    auto msg = buffer_->dequeue();
+    return std::make_unique<MessageT>(msg);
+  }
+
+  // ConstMessageSharedPtr to MessageT
+  template<typename OriginT>
+  typename std::enable_if<
+    (std::is_same<OriginT, ConstMessageSharedPtr>::value),
+    MessageT
+  >::type
+  consume_value_impl()
+  {
+    std::cout<<"consume_value_impl to shared should not be used"<<std::endl;
+    return MessageT();
+  }
+
+  // MessageUniquePtr to MessageT
+  template<typename OriginT>
+  typename std::enable_if<
+    (std::is_same<OriginT, MessageUniquePtr>::value),
+    MessageT
+  >::type
+  consume_value_impl()
+  {
+    std::cout<<"consume_value_impl to unique should not be used"<<std::endl;
+    return MessageT();
+  }
+
+  // MessageT to MessageT
+  template<typename OriginT>
+  typename std::enable_if<
+    (std::is_same<OriginT, MessageT>::value),
+    MessageT
+  >::type
+  consume_value_impl()
   {
     return buffer_->dequeue();
   }

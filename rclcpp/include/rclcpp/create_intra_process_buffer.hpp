@@ -78,6 +78,21 @@ create_intra_process_buffer(
 
         break;
       }
+    case IntraProcessBufferType::Value:
+      {
+        using BufferT = MessageT;
+
+        auto buffer_implementation =
+          std::make_shared<rclcpp::intra_process_buffer::RingBufferImplementation<BufferT>>(
+          buffer_size);
+
+        // construct the intra_process_buffer
+        buffer =
+          std::make_shared<rclcpp::intra_process_buffer::TypedIntraProcessBuffer<MessageT,
+            BufferT>>(buffer_implementation);
+
+        break;
+      }
     default:
       {
         throw std::runtime_error("Unrecognized IntraProcessBufferType value");
