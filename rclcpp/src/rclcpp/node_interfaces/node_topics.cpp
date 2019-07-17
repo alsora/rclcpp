@@ -147,8 +147,8 @@ NodeTopics::create_subscription(
 void
 NodeTopics::add_subscription(
   rclcpp::SubscriptionBase::SharedPtr subscription,
-  bool use_intra_process,
-  rclcpp::callback_group::CallbackGroup::SharedPtr callback_group)
+  rclcpp::callback_group::CallbackGroup::SharedPtr callback_group,
+  bool use_intra_process)
 {
   // Assign to a group.
   if (callback_group) {

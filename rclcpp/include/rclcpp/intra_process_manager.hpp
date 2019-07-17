@@ -58,7 +58,7 @@ namespace intra_process_manager
  * and subscriptions in this process and that is associated to the subscription.
  *
  * When a Node creates a publisher, as before this can be registered with this class.
- * This is required in order to publish messages intra-process.
+ * This is required in order to publish intra-process messages.
  * It is also allocated an id which is unique among all publishers
  * and subscriptions in this process and that is associated to the publisher.
  *

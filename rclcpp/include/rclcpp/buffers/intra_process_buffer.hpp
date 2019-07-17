@@ -105,11 +105,7 @@ public:
 
   bool use_take_shared_method() const
   {
-    if (std::is_same<BufferT, ConstMessageSharedPtr>::value) {
-      return true;
-    } else {
-      return false;
-    }
+    return std::is_same<BufferT, ConstMessageSharedPtr>::value;
   }
 
 private:

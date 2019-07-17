@@ -131,12 +131,6 @@ PublisherBase::get_gid() const
   return rmw_gid_;
 }
 
-const rmw_gid_t &
-PublisherBase::get_intra_process_gid() const
-{
-  return intra_process_rmw_gid_;
-}
-
 rcl_publisher_t *
 PublisherBase::get_publisher_handle()
 {
@@ -231,14 +225,6 @@ PublisherBase::operator==(const rmw_gid_t * gid) const
     rmw_reset_error();
     throw std::runtime_error(msg);
   }
-  if (!result) {
-    ret = rmw_compare_gids_equal(gid, &this->get_intra_process_gid(), &result);
-    if (ret != RMW_RET_OK) {
-      auto msg = std::string("failed to compare gids: ") + rmw_get_error_string().str;
-      rmw_reset_error();
-      throw std::runtime_error(msg);
-    }
-  }
   return result;
 }
 
@@ -247,8 +233,6 @@ PublisherBase::setup_intra_process(
   uint64_t intra_process_publisher_id,
   IntraProcessManagerSharedPtr ipm)
 {
-  intra_process_rmw_gid_ = rmw_gid_;
-
   intra_process_publisher_id_ = intra_process_publisher_id;
   weak_ipm_ = ipm;
   intra_process_is_enabled_ = true;

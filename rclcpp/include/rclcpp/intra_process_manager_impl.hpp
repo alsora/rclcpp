@@ -98,7 +98,7 @@ private:
     SubscriptionInfo() = default;
 
     SubscriptionIntraProcessBase::SharedPtr subscription;
-    rmw_qos_profile_t options;
+    rmw_qos_profile_t qos;
     const char * topic_name;
     bool use_take_shared_method;
   };
@@ -108,7 +108,7 @@ private:
     PublisherInfo() = default;
 
     PublisherBase::WeakPtr publisher;
-    rmw_qos_profile_t options;
+    rmw_qos_profile_t qos;
     const char * topic_name;
   };
 
@@ -157,14 +157,14 @@ private:
     }
 
     // a reliable subscription can't be connected with a best effort publisher
-    if (sub_info.options.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE &&
-      pub_info.options.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
+    if (sub_info.qos.reliability == RMW_QOS_POLICY_RELIABILITY_RELIABLE &&
+      pub_info.qos.reliability == RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
     {
       return false;
     }
 
     // a publisher and a subscription with different durability can't communicate
-    if (sub_info.options.durability != pub_info.options.durability) {
+    if (sub_info.qos.durability != pub_info.qos.durability) {
       return false;
     }
 
@@ -186,7 +186,7 @@ public:
 
     subscriptions_[id].subscription = subscription;
     subscriptions_[id].topic_name = subscription->get_topic_name();
-    subscriptions_[id].options = subscription->get_actual_qos();
+    subscriptions_[id].qos = subscription->get_actual_qos();
     subscriptions_[id].use_take_shared_method =
       subscription->use_take_shared_method();
 
@@ -219,7 +219,7 @@ public:
 
     publishers_[id].publisher = publisher;
     publishers_[id].topic_name = publisher->get_topic_name();
-    publishers_[id].options = publisher->get_actual_qos();
+    publishers_[id].qos = publisher->get_actual_qos();
 
     // create an entry for the publisher id and populate with already existing subscriptions
     for (auto & pair : subscriptions_) {

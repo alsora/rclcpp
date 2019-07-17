@@ -138,7 +138,7 @@ create_subscription(
     options.template to_rcl_subscription_options<MessageT>(qos),
     use_intra_process,
     options.intra_process_buffer_type);
-  node_topics->add_subscription(sub, use_intra_process, options.callback_group);
+  node_topics->add_subscription(sub, options.callback_group, use_intra_process);
   return std::dynamic_pointer_cast<SubscriptionT>(sub);
 }
 
