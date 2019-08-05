@@ -548,6 +548,13 @@ NodeParameters::set_parameters_atomically(const std::vector<rclcpp::Parameter> &
       result.reason = "parameter '" + name + "' cannot be set because it is read-only";
       return result;
     }
+
+    // Prevent changing the type for already declared parameters.
+    if (parameter_info->second.value.get_type() != parameter.get_type()) {
+      result.successful = false;
+      result.reason = "parameter '" + name + "' cannot be set because it has a different type";
+      return result;
+    }
   }
 
   // Declare parameters into a temporary "staging area", incase one of the declares fail.
