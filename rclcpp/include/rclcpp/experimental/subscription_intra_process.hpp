@@ -90,6 +90,13 @@ public:
       throw std::runtime_error("SubscriptionIntraProcess init error initializing guard condition");
     }
 
+    wait_set_ = rcl_get_zero_initialized_wait_set();
+    ret = rcl_wait_set_init(&wait_set_, 0, 1, 0, 0, 0, 0, context->get_rcl_context().get(), rcl_get_default_allocator());
+
+    if (RCL_RET_OK != ret) {
+      throw std::runtime_error("SubscriptionIntraProcess init error initializing wait set");
+    }
+
     TRACEPOINT(
       rclcpp_subscription_callback_added,
       (const void *)this,
@@ -134,10 +141,33 @@ public:
     return buffer_->use_take_shared_method();
   }
 
+  void consume_messages_task() override
+  {
+    rcl_ret_t ret;
+    do {
+      ret = rcl_wait_set_clear(&wait_set_);
+      ret = rcl_wait_set_add_guard_condition(&wait_set_, &gc_, NULL);
+
+      // Wait until guard condition is triggered
+      ret = rcl_wait(&wait_set_, -1);
+
+      // If guard condition is triggered, check buffer for data
+      while (is_ready(&wait_set_)) {
+          // Process the message
+          execute();
+      }
+    } while (rclcpp::ok());
+
+    ret = rcl_wait_set_fini(&wait_set_);
+    (void)ret;
+  }
+
 private:
   void
   trigger_guard_condition()
   {
+    // Publisher pushed message into the buffer.
+    // Notify subscription context
     rcl_ret_t ret = rcl_trigger_guard_condition(&gc_);
     (void)ret;
   }

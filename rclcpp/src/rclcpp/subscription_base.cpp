@@ -176,8 +176,8 @@ SubscriptionBase::can_loan_messages() const
   return rcl_subscription_can_loan_messages(subscription_handle_.get());
 }
 
-rclcpp::Waitable::SharedPtr
-SubscriptionBase::get_intra_process_waitable() const
+rclcpp::experimental::SubscriptionIntraProcessBase::SharedPtr
+SubscriptionBase::get_intra_process_subscription() const
 {
   // If not using intra process, shortcut to nullptr.
   if (!use_intra_process_) {
@@ -187,7 +187,7 @@ SubscriptionBase::get_intra_process_waitable() const
   auto ipm = weak_ipm_.lock();
   if (!ipm) {
     throw std::runtime_error(
-            "SubscriptionBase::get_intra_process_waitable() called "
+            "SubscriptionBase::get_intra_process_subscription() called "
             "after destruction of intra process manager");
   }
 

@@ -47,7 +47,7 @@ public:
 
   RCLCPP_PUBLIC
   size_t
-  get_number_of_ready_guard_conditions() {return 1;}
+  get_number_of_ready_guard_conditions() {return 0;} // QUICK HACK to avoid allocating space in the executor
 
   RCLCPP_PUBLIC
   bool
@@ -70,9 +70,13 @@ public:
   rmw_qos_profile_t
   get_actual_qos() const;
 
+  virtual void
+  consume_messages_task() = 0;
+
 protected:
   std::recursive_mutex reentrant_mutex_;
   rcl_guard_condition_t gc_;
+  rcl_wait_set_t wait_set_;
 
 private:
   virtual void
