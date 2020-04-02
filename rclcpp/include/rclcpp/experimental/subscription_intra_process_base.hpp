@@ -17,6 +17,7 @@
 
 #include <rmw/rmw.h>
 
+#include <condition_variable>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -75,8 +76,7 @@ public:
 
 protected:
   std::recursive_mutex reentrant_mutex_;
-  rcl_guard_condition_t gc_;
-  rcl_wait_set_t wait_set_;
+  std::condition_variable gc_;
 
 private:
   virtual void
