@@ -26,7 +26,13 @@ namespace experimental
 static std::atomic<uint64_t> _next_unique_id {1};
 
 IntraProcessManager::IntraProcessManager()
-{}
+{
+    std::thread ipc_subscription_thread = std::thread(
+      &SubscriptionIntraProcessBase::consume_messages_task,
+      intra_process_subscription);
+
+    ipc_subscription_thread.detach();
+}
 
 IntraProcessManager::~IntraProcessManager()
 {}

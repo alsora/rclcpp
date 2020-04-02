@@ -70,6 +70,13 @@
 #include <array>
 #include <thread>		// partly for __WINPTHREADS_VERSION if on MinGW-w64 w/ POSIX threading
 
+namespace rclcpp
+{
+namespace experimental
+{
+namespace buffers
+{
+
 // Platform-specific definitions of a numeric thread ID type and an invalid value
 namespace moodycamel { namespace details {
 	template<typename thread_id_t> struct thread_id_converter {
@@ -704,11 +711,11 @@ inline void swap(typename ConcurrentQueue<T, Traits>::ImplicitProducerKVP& a, ty
 
 
 template<typename T, typename Traits = ConcurrentQueueDefaultTraits>
-class ConcurrentQueue
+class ConcurrentQueue : public BufferImplementationBase<T>
 {
 public:
-	typedef ::moodycamel::ProducerToken producer_token_t;
-	typedef ::moodycamel::ConsumerToken consumer_token_t;
+	typedef rclcpp::experimental::buffers::moodycamel::ProducerToken producer_token_t;
+	typedef rclcpp::experimental::buffers::moodycamel::ConsumerToken consumer_token_t;
 	
 	typedef typename Traits::index_t index_t;
 	typedef typename Traits::size_t size_t;
@@ -927,15 +934,28 @@ private:
 	}
 	
 public:
+
+    void clear()
+    {
+        // Dummy method to make compiler happy
+    }
+
+    bool has_data() const
+    {
+        // Dummy method to make compiler happy
+        // this is the condition variable predicate, so it's currently not protecting against
+        // spurious awakes
+        return true;
+    }
+
 	// Enqueues a single item (by copying it).
 	// Allocates memory if required. Only fails if memory allocation fails (or implicit
 	// production is disabled because Traits::INITIAL_IMPLICIT_PRODUCER_HASH_SIZE is 0,
 	// or Traits::MAX_SUBQUEUE_SIZE has been defined and would be surpassed).
 	// Thread-safe.
-	inline bool enqueue(T const& item)
+	inline void enqueue(T const& item)
 	{
-		MOODYCAMEL_CONSTEXPR_IF (INITIAL_IMPLICIT_PRODUCER_HASH_SIZE == 0) return false;
-		else return inner_enqueue<CanAlloc>(item);
+        inner_enqueue<CanAlloc>(item);
 	}
 	
 	// Enqueues a single item (by moving it, if possible).
@@ -943,10 +963,9 @@ public:
 	// production is disabled because Traits::INITIAL_IMPLICIT_PRODUCER_HASH_SIZE is 0,
 	// or Traits::MAX_SUBQUEUE_SIZE has been defined and would be surpassed).
 	// Thread-safe.
-	inline bool enqueue(T&& item)
+	inline void enqueue(T&& item)
 	{
-		MOODYCAMEL_CONSTEXPR_IF (INITIAL_IMPLICIT_PRODUCER_HASH_SIZE == 0) return false;
-		else return inner_enqueue<CanAlloc>(std::move(item));
+        inner_enqueue<CanAlloc>(std::move(item));
 	}
 	
 	// Enqueues a single item (by copying it) using an explicit producer token.
@@ -1055,7 +1074,12 @@ public:
 		return inner_enqueue_bulk<CannotAlloc>(token, itemFirst, count);
 	}
 	
-	
+	T dequeue()
+    {
+        T item;
+        try_dequeue(item);
+        return item;
+    }
 	
 	// Attempts to dequeue from the queue.
 	// Returns false if all producer streams appeared empty at the time they
@@ -3681,6 +3705,10 @@ inline void swap(typename ConcurrentQueue<T, Traits>::ImplicitProducerKVP& a, ty
 }
 
 }
+
+}  // namespace buffers
+}  // namespace experimental
+}  // namespace rclcpp
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

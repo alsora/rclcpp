@@ -29,7 +29,7 @@ public:
   virtual ~BufferImplementationBase() {}
 
   virtual BufferT dequeue() = 0;
-  virtual void enqueue(BufferT request) = 0;
+  virtual void enqueue(BufferT&& request) = 0;
 
   virtual void clear() = 0;
   virtual bool has_data() const = 0;

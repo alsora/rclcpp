@@ -23,6 +23,7 @@
 
 #include "rclcpp/experimental/buffers/intra_process_buffer.hpp"
 #include "rclcpp/experimental/buffers/ring_buffer_implementation.hpp"
+#include "rclcpp/experimental/buffers/concurrentqueue.h"
 #include "rclcpp/intra_process_buffer_type.hpp"
 
 namespace rclcpp
@@ -54,7 +55,7 @@ create_intra_process_buffer(
         using BufferT = MessageSharedPtr;
 
         auto buffer_implementation =
-          std::make_unique<rclcpp::experimental::buffers::RingBufferImplementation<BufferT>>(
+          std::make_unique<rclcpp::experimental::buffers::moodycamel::ConcurrentQueue<BufferT>>(
           buffer_size);
 
         // Construct the intra_process_buffer
@@ -71,7 +72,7 @@ create_intra_process_buffer(
         using BufferT = MessageUniquePtr;
 
         auto buffer_implementation =
-          std::make_unique<rclcpp::experimental::buffers::RingBufferImplementation<BufferT>>(
+          std::make_unique<rclcpp::experimental::buffers::moodycamel::ConcurrentQueue<BufferT>>(
           buffer_size);
 
         // Construct the intra_process_buffer
