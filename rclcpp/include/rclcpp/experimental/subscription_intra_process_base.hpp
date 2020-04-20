@@ -17,6 +17,7 @@
 
 #include <rmw/rmw.h>
 
+#include <condition_variable>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -46,6 +47,13 @@ public:
   virtual ~SubscriptionIntraProcessBase() = default;
 
   RCLCPP_PUBLIC
+  void
+  set_executor_cv(std::shared_ptr<std::condition_variable> cv)
+  {
+    gc_ = cv;
+  }
+
+  RCLCPP_PUBLIC
   size_t
   get_number_of_ready_guard_conditions() {return 1;}
 
@@ -72,7 +80,7 @@ public:
 
 protected:
   std::recursive_mutex reentrant_mutex_;
-  rcl_guard_condition_t gc_;
+  std::shared_ptr<std::condition_variable>  gc_;
 
 private:
   virtual void
