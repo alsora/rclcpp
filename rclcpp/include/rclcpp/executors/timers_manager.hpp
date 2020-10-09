@@ -72,13 +72,11 @@ public:
    */
   inline std::chrono::nanoseconds get_head_timeout()
   {
-    auto min_timeout = std::chrono::nanoseconds::max();
-    TimerPtr head;
-    if (peek(&head) == 0) {
-      min_timeout = (*head)->time_until_trigger();
+    if (heap.empty()) {
+      return std::chrono::nanoseconds::max();
     }
 
-    return min_timeout;
+    return (*heap[0])->time_until_trigger();
   }
 
   /**
@@ -98,7 +96,7 @@ public:
     while ((*head)->is_ready()) {
       (*head)->execute_callback();
       restore_heap_up(0);
-      //verify();  
+      verify();
     }
   }
 
@@ -116,59 +114,16 @@ public:
 private:
   using TimerPtr = rclcpp::TimerBase::SharedPtr*;
 
-
   inline void add_timer_to_heap(TimerPtr x)
   {
+    size_t i = heap.size(); // Position where we are going to add timer
     heap.push_back(x);
-    size_t i = heap.size();
     while (i && ((*x)->time_until_trigger() < (*heap[(i-1)/2])->time_until_trigger())) {
       heap[i] = heap[(i-1)/2];
       heap[(i-1)/2] = x;
       i = (i-1)/2;
     }
   }
-
-
-
-/*
-  inline void remove_at(size_t i)
-  {
-    TimerPtr y = heap[--size];
-    heap[i] = y;
-
-    // Heapify upwards.
-    while (i > 0) {
-      size_t parent = (i-1)/2;
-      if ((*y)->time_until_trigger() < (*heap[parent])->time_until_trigger()) {
-        heap[i] = heap[parent];
-        heap[parent] = y;
-        i = parent;
-      } else {
-        break;
-      }
-    }
-
-    // Heapify downwards
-    while (2*i + 1 < size) {
-      size_t hi = i;
-      size_t left = 2*i+1;
-      size_t right = left + 1;
-      if ((*y)->time_until_trigger() > (*heap[left])->time_until_trigger()) {
-        hi = left;
-      }
-      if (right < size && ((*heap[hi])->time_until_trigger() > (*heap[right])->time_until_trigger())) {
-        hi = right;
-      }
-      if (hi != i) {
-        heap[i] = heap[hi];
-        heap[hi] = y;
-        i = hi;
-      } else {
-        break;
-      }
-    }
-  }
-  */
 
   inline void restore_heap_up(size_t i)
   {
@@ -187,10 +142,10 @@ private:
     }
 
     while (i > start) {
-      size_t parentpos = (i -1) >> 1;
-      if ((*updated_timer)->time_until_trigger() < (*heap[parentpos])->time_until_trigger()) {
-        heap[i] = heap[parentpos];
-        i = parentpos;
+      size_t parent = (i -1) >> 1;
+      if ((*updated_timer)->time_until_trigger() < (*heap[parent])->time_until_trigger()) {
+        heap[i] = heap[parent];
+        i = parent;
         continue;
       }
       break;
@@ -241,13 +196,13 @@ private:
   void verify()
   {
     //std::cout<<"verify"<<std::endl;
-    for (int i = 0; i < heap.size()/2; ++i) {
-      int left = 2*i + 1;
+    for (size_t i = 0; i < heap.size()/2; ++i) {
+      size_t left = 2*i + 1;
       if (left < heap.size()) {
         //std::cout<<"AA checking" << (*heap[left])->time_until_trigger().count() << " and "<< (*heap[i])->time_until_trigger().count() <<std::endl;
         assert(((*heap[left])->time_until_trigger().count() >= (*heap[i])->time_until_trigger().count()));
       }
-      int right = left + 1;
+      size_t right = left + 1;
       if (right < heap.size()) {
         //std::cout<<"BB checking" << (*heap[right])->time_until_trigger().count() << " and "<< (*heap[i])->time_until_trigger().count() <<std::endl;
         assert(((*heap[right])->time_until_trigger().count() >= (*heap[i])->time_until_trigger().count()));
@@ -257,63 +212,7 @@ private:
     //std::cout<<"verified "<<std::endl;
 
   }
-  
-/*
-  void heapify_downwards(int i)
-  {
-  while (2*i + 1 < size) {
-    size_t hi = i;
-    size_t left = 2*i+1;
-    size_t right = left + 1;
-    if ((*y)->time_until_trigger() > (*heap[left])->time_until_trigger()) {
-      hi = left;
-    }
-    if (right < size && ((*heap[hi])->time_until_trigger() > (*heap[right])->time_until_trigger())) {
-      hi = right;
-    }
-    if (hi != i) {
-      heap[i] = heap[hi];
-      heap[hi] = y;
-      i = hi;
-    } else {
-      break;
-    }
-  }
-  }
-*/
-/*
-  void convertHeap(int size, int i)
-  {
-    size_t hi = i;
-    size_t left = 2*i+1;
-    size_t right = left + 1;
-    if (left < size && (*heap[hi])->time_until_trigger() > (*heap[left])->time_until_trigger()) {
-      hi = left;
-    }
-    if (right < size && ((*heap[hi])->time_until_trigger() > (*heap[right])->time_until_trigger())) {
-      hi = right;
-    }
-    if (hi != i) {
-      swap(heap[i], heap[hi]);
-      convertHeap(size, hi);
-    }
-  }
 
-  void heap_sort()
-  {
-    for (int i = heap.size() / 2 - 1; i >= 0; i--)
-    {
-      convertHeap(heap.size(), i);
-      //heapify_downwards(i);
-    }
-
-    for (int i = heap.size() - 1; i >= 0; i--)
-    {
-      swap(heap[0], heap[i]);
-      convertHeap(i, 0);
-    }
-  }
-  */
  /*
   inline int pop(TimerPtr x)
   {
@@ -327,16 +226,7 @@ private:
     return 0;
   }
   */
-  inline int peek(TimerPtr* x)
-  {
-    if (heap.size() == 0) {
-      // The heap is empty, can't peek
-      return -1;
-    }
 
-    *x = heap[0];
-    return 0;
-  }
   /*
   inline int remove(TimerPtr x)
   {
