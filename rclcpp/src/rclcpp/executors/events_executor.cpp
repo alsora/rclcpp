@@ -20,6 +20,7 @@ EventsExecutor::EventsExecutor(
   const rclcpp::ExecutorOptions & options)
 : rclcpp::Executor(options)
 {
+  timers_manager_ = std::make_shared<TimersManager>(context_);
   entities_collector_ = std::make_shared<EventsExecutorEntitiesCollector>();
 
   // Set entities collector callbacks
@@ -27,13 +28,13 @@ EventsExecutor::EventsExecutor(
     this,
     &EventsExecutor::push_event,
     [this](const rclcpp::TimerBase::SharedPtr & t) {
-      timers.add_timer(t);
+      timers_manager_->add_timer(t);
     },
     [this](const rclcpp::TimerBase::SharedPtr & t) {
-      timers.remove_timer(t);
+      timers_manager_->remove_timer(t);
     },
     [this]() {
-      timers.clear_all();
+      timers_manager_->clear_all();
     });
 
   // Set interrupt guard condition callback
@@ -60,7 +61,7 @@ EventsExecutor::spin()
   RCLCPP_SCOPE_EXIT(this->spinning.store(false););
 
   // Start timers thread
-  std::thread t_spin_timers(&EventsExecutor::spin_timers, this, false);
+  std::thread t_spin_timers(&TimersManager::run_timers, timers_manager_);
   pthread_setname_np(t_spin_timers.native_handle(), "Timers");
 
   while (rclcpp::ok(context_) && spinning.load())
@@ -114,7 +115,7 @@ EventsExecutor::add_node(
     group->find_timer_ptrs_if(
       [this](const rclcpp::TimerBase::SharedPtr & timer) {
         if (timer) {
-          timers.add_timer(timer);
+          timers_manager_->add_timer(timer);
         }
         return false;
     });
@@ -191,8 +192,8 @@ EventsExecutor::spin_timers(bool spin_once)
 {
   while (rclcpp::ok(context_) && spinning.load())
   {
-    std::this_thread::sleep_for(timers.get_head_timeout());
-    timers.execute_ready_timers();
+    std::this_thread::sleep_for(timers_manager_->get_head_timeout());
+    timers_manager_->execute_ready_timers();
     if (spin_once) {
       break;
     }

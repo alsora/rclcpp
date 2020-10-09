@@ -153,7 +153,7 @@ private:
   std::condition_variable event_queue_cv;
 
   // Timers heap manager
-  TimersManager timers;
+  std::shared_ptr<TimersManager> timers_manager_;
 };
 
 }  // namespace executors
