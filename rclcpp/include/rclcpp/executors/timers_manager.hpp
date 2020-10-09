@@ -47,8 +47,8 @@ public:
   inline void add_timer(rclcpp::TimerBase::SharedPtr timer)
   {
     // Add timer to vector and order by expiration time
-    timers_storage.emplace_back(TimerInternal(timer));
-    std::sort(timers_storage.begin(), timers_storage.end());
+    timers_storage.emplace_back(timer);
+    std::sort(timers_storage.begin(), timers_storage.end(), less_than_key());
 
     // Clear heap as the pointers likely become invalid after the above emplace_back.
     heap.clear();
@@ -70,7 +70,7 @@ public:
     auto min_timeout = std::chrono::nanoseconds::max();
     TimerInternalPtr head;
     if (peek(&head) == 0) {
-      min_timeout = head->timer->time_until_trigger();
+      min_timeout = (*head)->time_until_trigger();
     }
 
     return min_timeout;
@@ -84,8 +84,8 @@ public:
   inline void execute_ready_timers()
   {
     TimerInternalPtr head;
-    while (peek(&head) == 0 && head->timer->is_ready()) {
-      head->timer->execute_callback();
+    while (peek(&head) == 0 && (*head)->is_ready()) {
+      (*head)->execute_callback();
 
       remove_at(0);
       push(head);
@@ -104,6 +104,7 @@ public:
   }
 
 private:
+/*
   struct TimerInternal
   {
     inline TimerInternal()
@@ -118,19 +119,28 @@ private:
 
     bool operator < (const TimerInternal& t) const
     {
-        return (timer->time_until_trigger() < t.timer->time_until_trigger());
+        return (time_until_trigger() < t.time_until_trigger());
     }
 
     rclcpp::TimerBase::SharedPtr timer;
   };
+*/
+  struct less_than_key
+  {
+    inline bool operator() (const rclcpp::TimerBase::SharedPtr& struct1, const rclcpp::TimerBase::SharedPtr& struct2)
+    {
+      return (struct1->time_until_trigger() < struct2->time_until_trigger());
+    }
+  };
 
-  using TimerInternalPtr = TimerInternal*;
+
+  using TimerInternalPtr = rclcpp::TimerBase::SharedPtr*;
 
   inline void push(TimerInternalPtr x)
   {
     size_t i = size++;
     heap[i] = x;
-    while (i && (x->timer->time_until_trigger() < heap[(i-1)/2]->timer->time_until_trigger())) {
+    while (i && ((*x)->time_until_trigger() < (*heap[(i-1)/2])->time_until_trigger())) {
       heap[i] = heap[(i-1)/2];
       heap[(i-1)/2] = x;
       i = (i-1)/2;
@@ -145,7 +155,7 @@ private:
     // Heapify upwards.
     while (i > 0) {
       size_t parent = (i-1)/2;
-      if (y->timer->time_until_trigger() < heap[parent]->timer->time_until_trigger()) {
+      if ((*y)->time_until_trigger() < (*heap[parent])->time_until_trigger()) {
         heap[i] = heap[parent];
         heap[parent] = y;
         i = parent;
@@ -159,10 +169,10 @@ private:
       size_t hi = i;
       size_t left = 2*i+1;
       size_t right = left + 1;
-      if (y->timer->time_until_trigger() > heap[left]->timer->time_until_trigger()) {
+      if ((*y)->time_until_trigger() > (*heap[left])->time_until_trigger()) {
         hi = left;
       }
-      if (right < size && (heap[hi]->timer->time_until_trigger() > heap[right]->timer->time_until_trigger())) {
+      if (right < size && ((*heap[hi])->time_until_trigger() > (*heap[right])->time_until_trigger())) {
         hi = right;
       }
       if (hi != i) {
@@ -215,7 +225,7 @@ private:
   }
 
   // Vector to keep ownership of the timers
-  std::vector<TimerInternal> timers_storage;
+  std::vector<rclcpp::TimerBase::SharedPtr> timers_storage;
   // Vector of pointers to stored timers used to implement the priority queue
   std::vector<TimerInternalPtr> heap;
   // Current number of elements in the heap
