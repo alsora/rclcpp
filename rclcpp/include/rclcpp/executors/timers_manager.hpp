@@ -1,7 +1,23 @@
-#include <array>
-#include <chrono>
+// Copyright 2020 Open Source Robotics Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include <rclcpp/clock.hpp>
+#ifndef RCLCPP__EXECUTORS__TIMERS_MANAGER_HPP_
+#define RCLCPP__EXECUTORS__TIMERS_MANAGER_HPP_
+
+#include <chrono>
+#include <vector>
+
 #include <rclcpp/timer.hpp>
 
 using namespace std::chrono_literals;
@@ -11,27 +27,27 @@ namespace rclcpp
 namespace executors
 {
 
-struct TimersHeap
+class TimersManager
 {
 public:
+  RCLCPP_SMART_PTR_DEFINITIONS_NOT_COPYABLE(TimersManager)
+
   /**
    * @brief Construct a new Timers Heap object
    */
-  TimersHeap()
+  TimersManager()
   {
-    clock = rclcpp::Clock(RCL_ROS_TIME);
     size = 0;
   }
 
   /**
    * @brief Adds a new TimerBase to the heap
    * @param timer the timer to be added
-   * @return int 0 if success, -1 if the heap is already full
    */
-  inline int add_timer(rclcpp::TimerBase::SharedPtr timer)
+  inline void add_timer(rclcpp::TimerBase::SharedPtr timer)
   {
     // Add timer to vector and order by expiration time
-    timers_storage.emplace_back(TimerInternal(timer, clock));
+    timers_storage.emplace_back(TimerInternal(timer));
     std::sort(timers_storage.begin(), timers_storage.end());
 
     // Clear heap as the pointers likely become invalid after the above emplace_back.
@@ -41,39 +57,36 @@ public:
     }
 
     size = heap.size();
-
-    return 0;
   }
 
   /**
    * @brief Get the time before the first timer in the heap expires
    *
-   * @return std::chrono::nanoseconds to wait, 0 if the timer is already expired
+   * @return std::chrono::nanoseconds to wait, the returned value could be negative if the timer
+   * is already expired
    */
   inline std::chrono::nanoseconds get_head_timeout()
   {
     auto min_timeout = std::chrono::nanoseconds::max();
+    TimerInternalPtr head;
     if (peek(&head) == 0) {
-      min_timeout = std::chrono::nanoseconds(head->expire_time - clock.now().nanoseconds());
+      min_timeout = head->timer->time_until_trigger();
     }
 
-    if (min_timeout < 0ns) {
-      min_timeout = 0ns;
-    }
     return min_timeout;
   }
 
   /**
    * @brief Executes all the ready timers in the heap
-   * These timers are refreshed and added back to the heap
+   * After execution, timers are added back to the heap
    * NOTE: may block indefinitely if the time for processing callbacks is longer than the timers period
    */
   inline void execute_ready_timers()
   {
+    TimerInternalPtr head;
     while (peek(&head) == 0 && head->timer->is_ready()) {
       head->timer->execute_callback();
 
-      head->refresh(clock);
       remove_at(0);
       push(head);
     }
@@ -96,18 +109,11 @@ private:
     inline TimerInternal()
     {
       timer = nullptr;
-      expire_time = INT64_MAX;
     }
 
-    inline TimerInternal(rclcpp::TimerBase::SharedPtr t, rclcpp::Clock& clock)
+    inline TimerInternal(rclcpp::TimerBase::SharedPtr t)
     {
       timer = t;
-      refresh(clock);
-    }
-
-    inline void refresh(rclcpp::Clock& clock)
-    {
-      expire_time = clock.now().nanoseconds() + timer->time_until_trigger().count();
     }
 
     bool operator < (const TimerInternal& t) const
@@ -116,7 +122,6 @@ private:
     }
 
     rclcpp::TimerBase::SharedPtr timer;
-    int64_t expire_time;
   };
 
   using TimerInternalPtr = TimerInternal*;
@@ -125,7 +130,7 @@ private:
   {
     size_t i = size++;
     heap[i] = x;
-    while (i && (x->expire_time < heap[(i-1)/2]->expire_time)) {
+    while (i && (x->timer->time_until_trigger() < heap[(i-1)/2]->timer->time_until_trigger())) {
       heap[i] = heap[(i-1)/2];
       heap[(i-1)/2] = x;
       i = (i-1)/2;
@@ -140,7 +145,7 @@ private:
     // Heapify upwards.
     while (i > 0) {
       size_t parent = (i-1)/2;
-      if (y->expire_time < heap[parent]->expire_time) {
+      if (y->timer->time_until_trigger() < heap[parent]->timer->time_until_trigger()) {
         heap[i] = heap[parent];
         heap[parent] = y;
         i = parent;
@@ -154,10 +159,10 @@ private:
       size_t hi = i;
       size_t left = 2*i+1;
       size_t right = left + 1;
-      if (y->expire_time > heap[left]->expire_time) {
+      if (y->timer->time_until_trigger() > heap[left]->timer->time_until_trigger()) {
         hi = left;
       }
-      if (right < size && (heap[hi]->expire_time > heap[right]->expire_time)) {
+      if (right < size && (heap[hi]->timer->time_until_trigger() > heap[right]->timer->time_until_trigger())) {
         hi = right;
       }
       if (hi != i) {
@@ -213,13 +218,11 @@ private:
   std::vector<TimerInternal> timers_storage;
   // Vector of pointers to stored timers used to implement the priority queue
   std::vector<TimerInternalPtr> heap;
-  // Helper to access first element in the heap
-  TimerInternalPtr head;
   // Current number of elements in the heap
   size_t size;
-  // Clock to update expiration times and generate timeouts
-  rclcpp::Clock clock;
 };
 
 }
 }
+
+#endif  // RCLCPP__EXECUTORS__TIMERS_MANAGER_HPP_
