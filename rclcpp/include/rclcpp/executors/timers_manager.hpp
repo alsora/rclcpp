@@ -37,22 +37,31 @@ public:
    */
   TimersManager() = default;
 
+  bool started = false;
+
   /**
    * @brief Adds a new TimerBase to the heap
    * @param timer the timer to be added
    */
   inline void add_timer(rclcpp::TimerBase::SharedPtr timer)
   {
+    std::cout<<"adding timer"<<std::endl;
+
+    if (started) {
+      std::cout<<"ignoring"<<std::endl;
+      return;
+    }
+
     // Add timer to vector and order by expiration time
     timers_storage.emplace_back(timer);
 
     // Clear heap as the pointers likely become invalid after the above emplace_back.
     heap.clear();
     for (auto& t : timers_storage) {
-      heap.push_back(&t);
+      add_timer_to_heap(&t);
     }
 
-    heap_sort();
+    //verify();
   }
 
   /**
@@ -79,24 +88,18 @@ public:
    */
   inline void execute_ready_timers()
   {
-    for (const auto &timer : heap) {
-      if (!(*timer)->is_ready()) {
-        break;
-      }
-      (*timer)->execute_callback();
+    started = true;
+
+    if (heap.empty()) {
+      return;
     }
 
-    heap_sort();
-
-    /*
-    TimerPtr head;
-    while (peek(&head) == 0 && (*head)->is_ready()) {
+    TimerPtr head = heap.front();
+    while ((*head)->is_ready()) {
       (*head)->execute_callback();
-
-      remove_at(0);
-      push(head);
+      restore_heap_up(0);
+      //verify();  
     }
-    */
   }
 
   inline void clear_all()
@@ -111,20 +114,13 @@ public:
   }
 
 private:
-  struct less_than_key
-  {
-    inline bool operator() (const rclcpp::TimerBase::SharedPtr& struct1, const rclcpp::TimerBase::SharedPtr& struct2)
-    {
-      return (struct1->time_until_trigger() < struct2->time_until_trigger());
-    }
-  };
-
   using TimerPtr = rclcpp::TimerBase::SharedPtr*;
 
-  inline void push(TimerPtr x)
+
+  inline void add_timer_to_heap(TimerPtr x)
   {
+    heap.push_back(x);
     size_t i = heap.size();
-    heap[i] = x;
     while (i && ((*x)->time_until_trigger() < (*heap[(i-1)/2])->time_until_trigger())) {
       heap[i] = heap[(i-1)/2];
       heap[(i-1)/2] = x;
@@ -132,6 +128,9 @@ private:
     }
   }
 
+
+
+/*
   inline void remove_at(size_t i)
   {
     TimerPtr y = heap[--size];
@@ -169,7 +168,120 @@ private:
       }
     }
   }
+  */
 
+  inline void restore_heap_up(size_t i)
+  {
+    size_t start = i;
+    TimerPtr updated_timer = heap[i];
+
+    size_t left = 2*i + 1;
+    while (left < heap.size()) {
+      size_t right = left + 1;
+      if (right < heap.size() && (*heap[left])->time_until_trigger() >= (*heap[right])->time_until_trigger()) {
+        left = right;
+      }
+      heap[i] = heap[left];
+      i = left;
+      left = 2*i + 1;
+    }
+
+    while (i > start) {
+      size_t parentpos = (i -1) >> 1;
+      if ((*updated_timer)->time_until_trigger() < (*heap[parentpos])->time_until_trigger()) {
+        heap[i] = heap[parentpos];
+        i = parentpos;
+        continue;
+      }
+      break;
+    }
+
+    heap[i] = updated_timer;
+  }
+
+/*
+  inline void remove_at(size_t i)
+  {
+    TimerPtr y = heap[--size];
+    heap[i] = y;
+
+    // Heapify upwards.
+    while (i > 0) {
+      size_t parent = (i-1)/2;
+      if ((*y)->time_until_trigger() < (*heap[parent])->time_until_trigger()) {
+        heap[i] = heap[parent];
+        heap[parent] = y;
+        i = parent;
+      } else {
+        break;
+      }
+    }
+
+    // Heapify downwards
+    while (2*i + 1 < size) {
+      size_t hi = i;
+      size_t left = 2*i+1;
+      size_t right = left + 1;
+      if ((*y)->time_until_trigger() > (*heap[left])->time_until_trigger()) {
+        hi = left;
+      }
+      if (right < size && ((*heap[hi])->time_until_trigger() > (*heap[right])->time_until_trigger())) {
+        hi = right;
+      }
+      if (hi != i) {
+        heap[i] = heap[hi];
+        heap[hi] = y;
+        i = hi;
+      } else {
+        break;
+      }
+    }
+  }
+  */
+  void verify()
+  {
+    //std::cout<<"verify"<<std::endl;
+    for (int i = 0; i < heap.size()/2; ++i) {
+      int left = 2*i + 1;
+      if (left < heap.size()) {
+        //std::cout<<"AA checking" << (*heap[left])->time_until_trigger().count() << " and "<< (*heap[i])->time_until_trigger().count() <<std::endl;
+        assert(((*heap[left])->time_until_trigger().count() >= (*heap[i])->time_until_trigger().count()));
+      }
+      int right = left + 1;
+      if (right < heap.size()) {
+        //std::cout<<"BB checking" << (*heap[right])->time_until_trigger().count() << " and "<< (*heap[i])->time_until_trigger().count() <<std::endl;
+        assert(((*heap[right])->time_until_trigger().count() >= (*heap[i])->time_until_trigger().count()));
+      }
+    }
+
+    //std::cout<<"verified "<<std::endl;
+
+  }
+  
+/*
+  void heapify_downwards(int i)
+  {
+  while (2*i + 1 < size) {
+    size_t hi = i;
+    size_t left = 2*i+1;
+    size_t right = left + 1;
+    if ((*y)->time_until_trigger() > (*heap[left])->time_until_trigger()) {
+      hi = left;
+    }
+    if (right < size && ((*heap[hi])->time_until_trigger() > (*heap[right])->time_until_trigger())) {
+      hi = right;
+    }
+    if (hi != i) {
+      heap[i] = heap[hi];
+      heap[hi] = y;
+      i = hi;
+    } else {
+      break;
+    }
+  }
+  }
+*/
+/*
   void convertHeap(int size, int i)
   {
     size_t hi = i;
@@ -192,6 +304,7 @@ private:
     for (int i = heap.size() / 2 - 1; i >= 0; i--)
     {
       convertHeap(heap.size(), i);
+      //heapify_downwards(i);
     }
 
     for (int i = heap.size() - 1; i >= 0; i--)
@@ -200,7 +313,8 @@ private:
       convertHeap(i, 0);
     }
   }
-
+  */
+ /*
   inline int pop(TimerPtr x)
   {
     if (heap.size() == 0) {
@@ -212,7 +326,7 @@ private:
     remove_at(0);
     return 0;
   }
-
+  */
   inline int peek(TimerPtr* x)
   {
     if (heap.size() == 0) {
@@ -223,7 +337,7 @@ private:
     *x = heap[0];
     return 0;
   }
-
+  /*
   inline int remove(TimerPtr x)
   {
     size_t i;
@@ -239,13 +353,13 @@ private:
     remove_at(i);
     return 0;
   }
-
+  */
   // Vector to keep ownership of the timers
   std::vector<rclcpp::TimerBase::SharedPtr> timers_storage;
   // Vector of pointers to stored timers used to implement the priority queue
   std::vector<TimerPtr> heap;
   // Current number of elements in the heap
-  size_t size;
+  //size_t size;
 };
 
 }
