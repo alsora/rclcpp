@@ -22,6 +22,7 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -66,7 +67,7 @@ public:
 
       // Store ownership of timer and add it to heap
       timers_storage_.emplace_back(timer);
-      add_timer_to_heap(&(timers_storage_.back()));
+      this->add_timer_to_heap(&(timers_storage_.back()));
     }
 
     // Notify that a timer has been added to the heap
@@ -81,7 +82,10 @@ public:
   void start()
   {
     // Make sure that the thread is not already running
-    assert(!running_);
+    if (running_) {
+      throw std::runtime_error("TimersManager::start() can't start timers thread as already running");
+    }
+
     timers_thread_ = std::thread(&TimersManager::run_timers, this);
     pthread_setname_np(timers_thread_.native_handle(), "TimersManager");
   }
@@ -105,20 +109,18 @@ public:
   }
 
   /**
-   * @brief Destruct the object making sure to stop thread and release memory.
+   * @brief Executes all the ready timers while keeping the heap correctly sorted.
+   * This function may block indefinitely if the time 
+   * for processing callbacks is longer than the timers period.
    */
-  ~TimersManager()
+  void execute_ready_timers()
   {
-    std::cout<<"Destructor"<<std::endl;
-    // Make sure timers thread is stopped before destroying this object
-    this->stop();
-
-    this->clear_all();
-  }  
+    std::unique_lock<std::mutex> lock(timers_mutex_);
+    this->execute_ready_timers_unsafe();
+  }
 
   /**
    * @brief Get the amount of time before the next timer expires.
-   * This function is not thread safe, acquire a mutex before calling it.
    *
    * @return std::chrono::nanoseconds to wait, 
    * the returned value could be negative if the timer is already expired
@@ -126,31 +128,8 @@ public:
    */
   std::chrono::nanoseconds get_head_timeout()
   {
-    if (heap_.empty()) {
-      return std::chrono::nanoseconds::max();
-    }
-
-    return (*heap_[0])->time_until_trigger();
-  }
-
-  /**
-   * @brief Executes all the ready timers while keeping the heap correctly sorted.
-   * This function may block indefinitely if the time 
-   * for processing callbacks is longer than the timers period.
-   * This function is not thread safe, acquire a mutex before calling it.
-   */
-  void execute_ready_timers()
-  {
-    if (heap_.empty()) {
-      return;
-    }
-
-    TimerPtr head = heap_.front();
-    while ((*head)->is_ready()) {
-      (*head)->execute_callback();
-      restore_heap_up(0);
-      //verify();
-    }
+    std::unique_lock<std::mutex> lock(timers_mutex_);
+    return this->get_head_timeout_unsafe();
   }
 
   /**
@@ -181,8 +160,20 @@ public:
 
     // Remove timer from the storage and rebuild heap
     timers_storage_.erase(it);
-    rebuild_heap();
+    this->rebuild_heap();
   }
+
+  /**
+   * @brief Destruct the object making sure to stop thread and release memory.
+   */
+  ~TimersManager()
+  {
+    std::cout<<"Destructor"<<std::endl;
+    // Make sure timers thread is stopped before destroying this object
+    this->stop();
+
+    this->clear_all();
+  }  
 
 private:
   RCLCPP_DISABLE_COPY(TimersManager)
@@ -198,7 +189,44 @@ private:
   {
     heap_.clear();
     for (auto& t : timers_storage_) {
-      add_timer_to_heap(&t);
+      this->add_timer_to_heap(&t);
+    }
+  }
+
+  /**
+   * @brief Get the amount of time before the next timer expires.
+   * This function is not thread safe, acquire a mutex before calling it.
+   *
+   * @return std::chrono::nanoseconds to wait, 
+   * the returned value could be negative if the timer is already expired
+   * or nanoseconds::max if the heap is empty.
+   */
+  std::chrono::nanoseconds get_head_timeout_unsafe()
+  {
+    if (heap_.empty()) {
+      return std::chrono::nanoseconds::max();
+    }
+
+    return (*heap_[0])->time_until_trigger();
+  }
+
+  /**
+   * @brief Executes all the ready timers while keeping the heap correctly sorted.
+   * This function may block indefinitely if the time 
+   * for processing callbacks is longer than the timers period.
+   * This function is not thread safe, acquire a mutex before calling it.
+   */
+  void execute_ready_timers_unsafe()
+  {
+    if (heap_.empty()) {
+      return;
+    }
+
+    TimerPtr head = heap_.front();
+    while ((*head)->is_ready()) {
+      (*head)->execute_callback();
+      this->restore_heap_up(0);
+      //verify();
     }
   }
 
@@ -212,9 +240,9 @@ private:
     while (rclcpp::ok(context_) && running_)
     {
       std::unique_lock<std::mutex> lock(timers_mutex_);
-      auto time_to_sleep = this->get_head_timeout();
+      auto time_to_sleep = this->get_head_timeout_unsafe();
       timers_cv_.wait_for(lock, time_to_sleep);
-      this->execute_ready_timers();
+      this->execute_ready_timers_unsafe();
     }
   }
 
