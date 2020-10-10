@@ -58,14 +58,20 @@ public:
       return;
     }
 
-    // Add timer to vector and order by expiration time
-    timers_storage_.emplace_back(timer);
+    {
+      std::unique_lock<std::mutex> lock(timers_heap_mutex_);
+      // Add timer to vector and order by expiration time
+      timers_storage_.emplace_back(timer);
 
-    // Rebuild heap_ as pointers to elements in timers_storage_ vector become invalid after resize
-    heap_.clear();
-    for (auto& t : timers_storage_) {
-      add_timer_to_heap(&t);
+      // Rebuild heap_ as pointers to elements in timers_storage_ vector become invalid after resize
+      heap_.clear();
+      for (auto& t : timers_storage_) {
+        add_timer_to_heap(&t);
+      }
     }
+
+    // Notify that a timer has been added to the heap
+    timers_heap_cv_.notify_one();
 
     //verify();
   }
@@ -77,7 +83,7 @@ public:
     {
       std::unique_lock<std::mutex> lock(timers_heap_mutex_);
       auto time_to_sleep = this->get_head_timeout();
-      timers_heap_cv.wait_for(lock, time_to_sleep);
+      timers_heap_cv_.wait_for(lock, time_to_sleep);
       this->execute_ready_timers();
     }
   }
@@ -99,7 +105,7 @@ public:
       std::cout<<"Run"<<std::endl;
       std::unique_lock<std::mutex> lock(timers_heap_mutex_);
       auto time_to_sleep = this->get_head_timeout();
-      timers_heap_cv.wait_for(lock, time_to_sleep);
+      timers_heap_cv_.wait_for(lock, time_to_sleep);
       //std::this_thread::sleep_for(time_to_sleep);
       this->execute_ready_timers();
     }
@@ -112,7 +118,7 @@ public:
     std::cout<<"Stop"<<std::endl;
     // notify stop
     running_ = false;
-    timers_heap_cv.notify_one(); 
+    timers_heap_cv_.notify_one(); 
     
     if (t_spin_timers.joinable()) {
       std::cout<<"Joining"<<std::endl;
@@ -168,7 +174,11 @@ public:
 
   inline void clear_all()
   {
-    // Todo: Implement clear all timers.
+    std::unique_lock<std::mutex> lock(timers_heap_mutex_);
+    timers_storage_.clear();
+    heap_.clear();
+
+    // TODO: should I notify?
   }
 
   inline void remove_timer(rclcpp::TimerBase::SharedPtr timer)
@@ -315,7 +325,7 @@ private:
   //std::thread t_spin_timers;
 
   std::mutex timers_heap_mutex_;
-  std::condition_variable timers_heap_cv;
+  std::condition_variable timers_heap_cv_;
 
   std::atomic<bool> running_ {false};
 
