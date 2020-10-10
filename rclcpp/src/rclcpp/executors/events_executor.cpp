@@ -60,16 +60,14 @@ EventsExecutor::spin()
   }
   RCLCPP_SCOPE_EXIT(this->spinning.store(false););
 
-  // Start timers thread
-  std::thread t_spin_timers(&TimersManager::run_timers, timers_manager_);
-  pthread_setname_np(t_spin_timers.native_handle(), "Timers");
+  timers_manager_->start();
 
   while (rclcpp::ok(context_) && spinning.load())
   {
     execute_events();
   }
 
-  t_spin_timers.join();
+  timers_manager_->stop();
 }
 
 // Before calling spin_some
@@ -84,16 +82,14 @@ EventsExecutor::spin_some(std::chrono::nanoseconds max_duration)
   }
   RCLCPP_SCOPE_EXIT(this->spinning.store(false););
 
-  // Start timers thread
-  std::thread t_spin_timers(&EventsExecutor::spin_timers, this, true);
+  // Execute timers and leave
+  timers_manager_->execute_ready_timers();
 
   // Execute events and leave
   if (rclcpp::ok(context_) && spinning.load())
   {
     execute_events();
   }
-
-  t_spin_timers.join();
 }
 
 void
@@ -185,19 +181,6 @@ void
 EventsExecutor::remove_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify)
 {
   this->remove_node(node_ptr->get_node_base_interface(), notify);
-}
-
-void
-EventsExecutor::spin_timers(bool spin_once)
-{
-  while (rclcpp::ok(context_) && spinning.load())
-  {
-    std::this_thread::sleep_for(timers_manager_->get_head_timeout());
-    timers_manager_->execute_ready_timers();
-    if (spin_once) {
-      break;
-    }
-  }
 }
 
 void
