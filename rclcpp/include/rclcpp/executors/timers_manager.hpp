@@ -34,6 +34,29 @@ namespace rclcpp
 namespace executors
 {
 
+/**
+ * @brief This class provides a way for storing and executing timer objects.
+ * It APIs to suit the needs of different applications and execution models.
+ *
+ * Timers management
+ * This class provides APIs to add and remove timers.
+ * This class keeps ownership of the added timers through a shared pointer.
+ * Timers are kept ordered in a priority queue.
+ * Calls to add/remove APIs will temporarily block the execution of the timers and
+ * will require to reorder the internal priority queue of timers.
+ * Because of this, they have a not-negligible impact on the performance.
+ *
+ * Timers execution
+ * The most efficient implementation consists in letting a TimersManager object
+ * to spawn a thread where timers are monitored and periodically executed.
+ * Besides this, other APIs allow to either execute a single timer or all the
+ * currently ready ones.
+ * This class assumes that the execute_callback API of the stored timer is never
+ * called by other entities, but can only be called from here.
+ * If this assumption is not respected, the heap property will be invalidated,
+ * so timers may be executed out of order.
+ *
+ */
 class TimersManager
 {
 public:
@@ -42,121 +65,42 @@ public:
   /**
    * @brief Construct a new TimersManager object
    */
-  TimersManager(std::shared_ptr<rclcpp::Context> context)
-  {
-    context_ = context;
-  }
+  TimersManager(std::shared_ptr<rclcpp::Context> context);
+
+  /**
+   * @brief Destruct the object making sure to stop thread and release memory.
+   */
+  ~TimersManager();
 
   /**
    * @brief Adds a new TimerBase to the storage.
    * This object will keep ownership of the timer.
    * @param timer the timer to be added
    */
-  void add_timer(rclcpp::TimerBase::SharedPtr timer)
-  {
-    std::cout<<"adding timer: current size"<< timers_storage_.size()<<std::endl;
-
-    {
-      std::unique_lock<std::mutex> lock(timers_mutex_);
-
-      // Make sure that the provided timer is not already in the timers storage
-      if (std::find(timers_storage_.begin(), timers_storage_.end(), timer) != timers_storage_.end()) {
-        std::cout<<"ignoring existing timer!!"<<std::endl;
-        return;
-      }
-
-      // Store ownership of timer and add it to heap
-      timers_storage_.emplace_back(timer);
-      this->add_timer_to_heap(&(timers_storage_.back()));
-    }
-
-    // Notify that a timer has been added to the heap
-    timers_cv_.notify_one();
-
-    //verify();
-  }
+  void add_timer(rclcpp::TimerBase::SharedPtr timer);
 
   /**
    * @brief Starts a thread that takes care of executing timers added to this object.
    */
-  void start()
-  {
-    // Make sure that the thread is not already running
-    if (running_) {
-      throw std::runtime_error("TimersManager::start() can't start timers thread as already running");
-    }
-
-    timers_thread_ = std::thread(&TimersManager::run_timers, this);
-    pthread_setname_np(timers_thread_.native_handle(), "TimersManager");
-  }
+  void start();
 
   /**
    * @brief Stops the timers thread.
    */
-  void stop()
-  {
-    std::cout<<"Stop"<<std::endl;
-    // Notify stop to timers thread
-    running_ = false;
-    timers_cv_.notify_one(); 
-    
-    // Join timers thread if it's running
-    if (timers_thread_.joinable()) {
-      std::cout<<"Joining"<<std::endl;
-      timers_thread_.join();
-    }
-    std::cout<<"Stop done"<<std::endl;
-  }
+  void stop();
 
   /**
    * @brief Executes all the timers currently ready when the function is invoked
    * while keeping the heap correctly sorted.
    */
-  void execute_ready_timers()
-  {
-    std::unique_lock<std::mutex> lock(timers_mutex_);
-    
-    if (heap_.empty()) {
-      return;
-    }
-
-    auto start = std::chrono::steady_clock::now();
-    auto timer_was_ready_at_start = [start](TimerPtr timer) {
-      // A ready timer will return a negative duration when calling time_until_trigger
-      auto time_ready = std::chrono::steady_clock::now() + (*timer)->time_until_trigger();
-      return time_ready < start;
-    };
-
-    TimerPtr head = heap_.front();
-    while ((*head)->is_ready() && timer_was_ready_at_start(head)) {
-      (*head)->execute_callback();
-      this->restore_heap_up(0);
-      //verify();
-    }
-  }
+  void execute_ready_timers();
 
   /**
    * @brief Executes one ready timer if available
    * 
    * @return true if there was a timer ready
    */
-  bool execute_head_timer()
-  {
-    std::unique_lock<std::mutex> lock(timers_mutex_);
-
-    if (heap_.empty()) {
-      return false;
-    }
-
-    TimerPtr head = heap_.front();
-    if ((*head)->is_ready()) {
-      (*head)->execute_callback();
-      this->restore_heap_up(0);
-      return true;
-    } else {
-      return false;
-    }
-  }
+  bool execute_head_timer();
 
   /**
    * @brief Get the amount of time before the next timer expires.
@@ -165,54 +109,18 @@ public:
    * the returned value could be negative if the timer is already expired
    * or MAX_TIME if the heap is empty.
    */
-  std::chrono::nanoseconds get_head_timeout()
-  {
-    std::unique_lock<std::mutex> lock(timers_mutex_);
-    return this->get_head_timeout_unsafe();
-  }
+  std::chrono::nanoseconds get_head_timeout();
 
   /**
    * @brief Remove all the timers stored in the object.
    */
-  void clear_all()
-  {
-    std::unique_lock<std::mutex> lock(timers_mutex_);
-    std::cout<<"clear all!!"<<std::endl;
-    heap_.clear();
-    timers_storage_.clear();
-  }
+  void clear_all();
 
   /**
    * @brief Remove a single timer stored in the object.
    * @param timer the timer to remove.
    */
-  void remove_timer(rclcpp::TimerBase::SharedPtr timer)
-  {
-    std::unique_lock<std::mutex> lock(timers_mutex_);
-    std::cout<<"here should remove single timer"<<std::endl;
-
-    // Make sure that we are currently storing the provided timer before proceeding
-    auto it = std::find(timers_storage_.begin(), timers_storage_.end(), timer);
-    if (it == timers_storage_.end()) {
-      return;
-    }
-
-    // Remove timer from the storage and rebuild heap
-    timers_storage_.erase(it);
-    this->rebuild_heap();
-  }
-
-  /**
-   * @brief Destruct the object making sure to stop thread and release memory.
-   */
-  ~TimersManager()
-  {
-    std::cout<<"Destructor"<<std::endl;
-    // Make sure timers thread is stopped before destroying this object
-    this->stop();
-
-    this->clear_all();
-  }
+  void remove_timer(rclcpp::TimerBase::SharedPtr timer);
 
   // This is what the TimersManager uses to denote a duration forever.
   // We don't use std::chrono::nanoseconds::max because it will overflow.
@@ -225,17 +133,10 @@ private:
   using TimerPtr = rclcpp::TimerBase::SharedPtr*;
 
   /**
-   * @brief Rebuilds the heap queue from the timers storage
-   * This function is meant to be called whenever something changes in the timers storage.
-   * This function is not thread safe, you need to acquire a mutex before calling it.
+   * @brief Implements a loop that keeps executing ready timers.
+   * This function is executed in the timers thread.
    */
-  void rebuild_heap()
-  {
-    heap_.clear();
-    for (auto& t : timers_storage_) {
-      this->add_timer_to_heap(&t);
-    }
-  }
+  void run_timers();
 
   /**
    * @brief Get the amount of time before the next timer expires.
@@ -255,33 +156,11 @@ private:
   }
 
   /**
-   * @brief Implements a loop that keeps executing ready timers.
-   * This function is executed in the timers thread.
+   * @brief Rebuilds the heap queue from the timers storage
+   * This function is meant to be called whenever something changes in the timers storage.
+   * This function is not thread safe, you need to acquire a mutex before calling it.
    */
-  void run_timers()
-  {
-    running_ = true;
-    while (rclcpp::ok(context_) && running_)
-    {
-      std::unique_lock<std::mutex> lock(timers_mutex_);
-      auto time_to_sleep = this->get_head_timeout_unsafe();
-      timers_cv_.wait_for(lock, time_to_sleep);
-
-      if (heap_.empty()) {
-        // This could happen if while we were sleeping someone removed timers
-        continue;
-      }
-
-      // If the time that timers take to be executed is longer than the period on which new timers
-      // become ready, the while loop may block indefinitely while keeping the mutex locked
-      TimerPtr head = heap_.front();
-      while ((*head)->is_ready()) {
-        (*head)->execute_callback();
-        this->restore_heap_up(0);
-        //verify();
-      }
-    }
-  }
+  void rebuild_heap();
 
   /**
    * @brief Add a new timer to the heap and sort it.
@@ -299,27 +178,33 @@ private:
   }
 
   /**
-   * @brief Restore a valid heap after a value is increased.
-   * @param i index of the updated value.
+   * @brief Restore a valid heap after the root value is replaced.
+   * This function assumes that the value is increased, because if it was decreased
+   * then there is nothing to do.
    */
-  void restore_heap_up(size_t i)
+  void restore_heap_root()
   {
-    size_t start = i;
-    TimerPtr updated_timer = heap_[i];
+    constexpr size_t start = 0;
+    TimerPtr updated_timer = heap_[0];
 
-    size_t left = 2*i + 1;
-    while (left < heap_.size()) {
-      size_t right = left + 1;
-      if (right < heap_.size() && (*heap_[left])->time_until_trigger() >= (*heap_[right])->time_until_trigger()) {
-        left = right;
+    // Initialize to root and first left child
+    size_t i = 0;
+    size_t left_child = 1;
+
+    // Swim up
+    while (left_child < heap_.size()) {
+      size_t right_child = left_child + 1;
+      if (right_child < heap_.size() && (*heap_[left_child])->time_until_trigger() >= (*heap_[right_child])->time_until_trigger()) {
+        left_child = right_child;
       }
-      heap_[i] = heap_[left];
-      i = left;
-      left = 2*i + 1;
+      heap_[i] = heap_[left_child];
+      i = left_child;
+      left_child = 2*i + 1;
     }
 
+    // Swim down
     while (i > start) {
-      size_t parent = (i -1) >> 1;
+      size_t parent = (i - 1)/2;
       if ((*updated_timer)->time_until_trigger() < (*heap_[parent])->time_until_trigger()) {
         heap_[i] = heap_[parent];
         i = parent;

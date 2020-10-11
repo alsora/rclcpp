@@ -18,8 +18,6 @@ using namespace std::chrono_literals;
 
 using rclcpp::executors::EventsExecutor;
 
-constexpr std::chrono::nanoseconds rclcpp::executors::TimersManager::MAX_TIME;
-
 EventsExecutor::EventsExecutor(
   const rclcpp::ExecutorOptions & options)
 : rclcpp::Executor(options)
