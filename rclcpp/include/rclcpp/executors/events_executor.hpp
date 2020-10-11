@@ -133,10 +133,15 @@ private:
 
   EventsExecutorEntitiesCollector::SharedPtr entities_collector_;
 
-  /// Execute events in the queue until it is empty
+  /// Extract and execute events from the queue until it is empty
   RCLCPP_PUBLIC
   void
-  execute_events(std::queue<EventQ> &queue);
+  consume_all_events(std::queue<EventQ> &queue);
+
+  // Execute a single event
+  RCLCPP_PUBLIC
+  void
+  execute_event(const EventQ &event);
 
   // Executor callback: Push new events into the queue and trigger cv.
   // This function is called by the DDS entities when an event happened,

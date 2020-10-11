@@ -109,14 +109,53 @@ public:
   }
 
   /**
-   * @brief Executes all the ready timers while keeping the heap correctly sorted.
-   * This function may block indefinitely if the time 
-   * for processing callbacks is longer than the timers period.
+   * @brief Executes all the timers currently ready when the function is invoked
+   * while keeping the heap correctly sorted.
    */
   void execute_ready_timers()
   {
     std::unique_lock<std::mutex> lock(timers_mutex_);
-    this->execute_ready_timers_unsafe();
+    
+    if (heap_.empty()) {
+      return;
+    }
+
+    auto start = std::chrono::steady_clock::now();
+    auto timer_was_ready_at_start = [start](TimerPtr timer) {
+      // A ready timer will return a negative duration when calling time_until_trigger
+      auto time_ready = std::chrono::steady_clock::now() + (*timer)->time_until_trigger();
+      return time_ready < start;
+    };
+
+    TimerPtr head = heap_.front();
+    while ((*head)->is_ready() && timer_was_ready_at_start(head)) {
+      (*head)->execute_callback();
+      this->restore_heap_up(0);
+      //verify();
+    }
+  }
+
+  /**
+   * @brief Executes one ready timer if available
+   * 
+   * @return true if there was a timer ready
+   */
+  bool execute_head_timer()
+  {
+    std::unique_lock<std::mutex> lock(timers_mutex_);
+
+    if (heap_.empty()) {
+      return false;
+    }
+
+    TimerPtr head = heap_.front();
+    if ((*head)->is_ready()) {
+      (*head)->execute_callback();
+      this->restore_heap_up(0);
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
@@ -124,7 +163,7 @@ public:
    *
    * @return std::chrono::nanoseconds to wait, 
    * the returned value could be negative if the timer is already expired
-   * or nanoseconds::max if the heap is empty.
+   * or MAX_TIME if the heap is empty.
    */
   std::chrono::nanoseconds get_head_timeout()
   {
@@ -173,7 +212,12 @@ public:
     this->stop();
 
     this->clear_all();
-  }  
+  }
+
+  // This is what the TimersManager uses to denote a duration forever.
+  // We don't use std::chrono::nanoseconds::max because it will overflow.
+  // See https://en.cppreference.com/w/cpp/thread/condition_variable/wait_for
+  static constexpr std::chrono::nanoseconds MAX_TIME = std::chrono::hours(90);
 
 private:
   RCLCPP_DISABLE_COPY(TimersManager)
@@ -199,35 +243,15 @@ private:
    *
    * @return std::chrono::nanoseconds to wait, 
    * the returned value could be negative if the timer is already expired
-   * or nanoseconds::max if the heap is empty.
+   * or MAX_TIME if the heap is empty.
    */
   std::chrono::nanoseconds get_head_timeout_unsafe()
   {
     if (heap_.empty()) {
-      return std::chrono::nanoseconds::max();
+      return MAX_TIME;
     }
 
     return (*heap_[0])->time_until_trigger();
-  }
-
-  /**
-   * @brief Executes all the ready timers while keeping the heap correctly sorted.
-   * This function may block indefinitely if the time 
-   * for processing callbacks is longer than the timers period.
-   * This function is not thread safe, acquire a mutex before calling it.
-   */
-  void execute_ready_timers_unsafe()
-  {
-    if (heap_.empty()) {
-      return;
-    }
-
-    TimerPtr head = heap_.front();
-    while ((*head)->is_ready()) {
-      (*head)->execute_callback();
-      this->restore_heap_up(0);
-      //verify();
-    }
   }
 
   /**
@@ -242,7 +266,20 @@ private:
       std::unique_lock<std::mutex> lock(timers_mutex_);
       auto time_to_sleep = this->get_head_timeout_unsafe();
       timers_cv_.wait_for(lock, time_to_sleep);
-      this->execute_ready_timers_unsafe();
+
+      if (heap_.empty()) {
+        // This could happen if while we were sleeping someone removed timers
+        continue;
+      }
+
+      // If the time that timers take to be executed is longer than the period on which new timers
+      // become ready, the while loop may block indefinitely while keeping the mutex locked
+      TimerPtr head = heap_.front();
+      while ((*head)->is_ready()) {
+        (*head)->execute_callback();
+        this->restore_heap_up(0);
+        //verify();
+      }
     }
   }
 

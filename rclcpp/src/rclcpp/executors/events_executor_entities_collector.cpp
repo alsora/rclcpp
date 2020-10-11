@@ -198,6 +198,7 @@ EventsExecutorEntitiesCollector::set_entities_callbacks()
       group->find_waitable_ptrs_if(
         [this](const rclcpp::Waitable::SharedPtr & waitable) {
           if (waitable) {
+            std::cout<<"entities collector setting waitable callback"<<std::endl;
             waitable->set_guard_condition_callback(executor_context_, executor_callback_);
           }
           return false;
