@@ -86,20 +86,22 @@ std::chrono::nanoseconds TimersManager::get_head_timeout()
 void TimersManager::execute_ready_timers()
 {
   std::unique_lock<std::mutex> lock(timers_mutex_);
+  this->execute_ready_timers_unsafe();
+}
 
+void TimersManager::execute_ready_timers_unsafe()
+{
   if (heap_.empty()) {
     return;
   }
 
-  auto start = std::chrono::steady_clock::now();
-  auto timer_was_ready_at_start = [start](TimerPtr timer) {
-    // A ready timer will return a negative duration when calling time_until_trigger
-    auto time_ready = std::chrono::steady_clock::now() + (*timer)->time_until_trigger();
-    return time_ready < start;
-  };
+  // Keep executing timers until they are read and they were already ready when we started.
+  // The second check prevents this function from blocking indefinitely if the
+  // time required for executing the timers is longer than their period.
 
+  auto start = std::chrono::steady_clock::now();
   TimerPtr head = heap_.front();
-  while ((*head)->is_ready() && timer_was_ready_at_start(head)) {
+  while ((*head)->is_ready() && timer_was_ready_at_tp(start, head)) {
     (*head)->execute_callback();
     this->restore_heap_root();
     //verify();
@@ -127,25 +129,11 @@ bool TimersManager::execute_head_timer()
 void TimersManager::run_timers()
 {
   running_ = true;
-  while (rclcpp::ok(context_) && running_)
-  {
+  while (rclcpp::ok(context_) && running_) {
     std::unique_lock<std::mutex> lock(timers_mutex_);
     auto time_to_sleep = this->get_head_timeout_unsafe();
     timers_cv_.wait_for(lock, time_to_sleep);
-
-    if (heap_.empty()) {
-      // This could happen if while we were sleeping someone removed timers
-      continue;
-    }
-
-    // If the time that timers take to be executed is longer than the period on which new timers
-    // become ready, the while loop may block indefinitely while keeping the mutex locked
-    TimerPtr head = heap_.front();
-    while ((*head)->is_ready()) {
-      (*head)->execute_callback();
-      this->restore_heap_root();
-      //verify();
-    }
+    this->execute_ready_timers_unsafe();
   }
 
   running_ = false;

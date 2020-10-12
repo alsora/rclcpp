@@ -157,6 +157,29 @@ private:
   }
 
   /**
+   * @brief Executes all the timers currently ready when the function is invoked
+   * while keeping the heap correctly sorted.
+   * This function is not thread safe, acquire a mutex before calling it.
+   */
+  void execute_ready_timers_unsafe();
+
+  /**
+   * @brief Helper function that checks whether a timer was already ready
+   * at a specific timepoint
+   * @param tp the timepoint to check for
+   * @param timer a pointer to the timer to check for
+   * @return true if timer was ready at tp
+   */
+  bool timer_was_ready_at_tp(
+    std::chrono::time_point<std::chrono::steady_clock> tp,
+    TimerPtr timer)
+  {
+    // A ready timer will return a negative duration when calling time_until_trigger
+    auto time_ready = std::chrono::steady_clock::now() + (*timer)->time_until_trigger();
+    return time_ready < tp;
+  }
+
+  /**
    * @brief Rebuilds the heap queue from the timers storage
    * This function is meant to be called whenever something changes in the timers storage.
    * This function is not thread safe, you need to acquire a mutex before calling it.
