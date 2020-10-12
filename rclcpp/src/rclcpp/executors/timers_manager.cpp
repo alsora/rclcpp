@@ -14,7 +14,7 @@
 
 #include "rclcpp/executors/timers_manager.hpp"
 
-#include <iostream>
+#include <memory>
 
 using rclcpp::executors::TimersManager;
 
@@ -27,7 +27,6 @@ TimersManager::TimersManager(std::shared_ptr<rclcpp::Context> context)
 
 TimersManager::~TimersManager()
 {
-  std::cout<<"Destructor"<<std::endl;
   // Make sure timers thread is stopped before destroying this object
   this->stop();
   // Remove all timers
@@ -36,14 +35,11 @@ TimersManager::~TimersManager()
 
 void TimersManager::add_timer(rclcpp::TimerBase::SharedPtr timer)
 {
-  std::cout<<"adding timer: current size"<< timers_storage_.size()<<std::endl;
-
   {
     std::unique_lock<std::mutex> lock(timers_mutex_);
 
     // Make sure that the provided timer is not already in the timers storage
     if (std::find(timers_storage_.begin(), timers_storage_.end(), timer) != timers_storage_.end()) {
-      std::cout<<"ignoring existing timer!!"<<std::endl;
       return;
     }
 
@@ -71,23 +67,26 @@ void TimersManager::start()
 
 void TimersManager::stop()
 {
-  std::cout<<"Stop"<<std::endl;
   // Notify stop to timers thread
   running_ = false;
-  timers_cv_.notify_one(); 
-  
+  timers_cv_.notify_one();
+
   // Join timers thread if it's running
   if (timers_thread_.joinable()) {
-    std::cout<<"Joining"<<std::endl;
     timers_thread_.join();
   }
-  std::cout<<"Stop done"<<std::endl;
+}
+
+std::chrono::nanoseconds TimersManager::get_head_timeout()
+{
+  std::unique_lock<std::mutex> lock(timers_mutex_);
+  return this->get_head_timeout_unsafe();
 }
 
 void TimersManager::execute_ready_timers()
 {
   std::unique_lock<std::mutex> lock(timers_mutex_);
-  
+
   if (heap_.empty()) {
     return;
   }
@@ -125,12 +124,6 @@ bool TimersManager::execute_head_timer()
   }
 }
 
-std::chrono::nanoseconds TimersManager::get_head_timeout()
-{
-  std::unique_lock<std::mutex> lock(timers_mutex_);
-  return this->get_head_timeout_unsafe();
-}
-
 void TimersManager::run_timers()
 {
   running_ = true;
@@ -154,12 +147,13 @@ void TimersManager::run_timers()
       //verify();
     }
   }
+
+  running_ = false;
 }
 
 void TimersManager::clear_all()
 {
   std::unique_lock<std::mutex> lock(timers_mutex_);
-  std::cout<<"clear all!!"<<std::endl;
   heap_.clear();
   timers_storage_.clear();
 }
@@ -167,7 +161,6 @@ void TimersManager::clear_all()
 void TimersManager::remove_timer(rclcpp::TimerBase::SharedPtr timer)
 {
   std::unique_lock<std::mutex> lock(timers_mutex_);
-  std::cout<<"remove single timer"<<std::endl;
 
   // Make sure that we are currently storing the provided timer before proceeding
   auto it = std::find(timers_storage_.begin(), timers_storage_.end(), timer);

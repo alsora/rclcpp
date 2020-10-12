@@ -56,8 +56,6 @@ EventsExecutorEntitiesCollector::init(
 void
 EventsExecutorEntitiesCollector::execute()
 {
-  std::cout<<"EventsExecutorEntitiesCollector execute"<<std::endl;
-
   clear_all_timers_();
   set_entities_callbacks();
 }
@@ -81,9 +79,6 @@ void
 EventsExecutorEntitiesCollector::remove_node(
   rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node_ptr)
 {
-  std::cout<<"EventsExecutorEntitiesCollector remove_node"<<std::endl;
-
-
   auto node_it = weak_nodes_.begin();
 
   while (node_it != weak_nodes_.end()) {
@@ -153,9 +148,6 @@ EventsExecutorEntitiesCollector::remove_node(
 void
 EventsExecutorEntitiesCollector::set_entities_callbacks()
 {
-  std::cout<<"EventsExecutorEntitiesCollector set entities callback"<<std::endl;
-
-
   for (auto & weak_node : weak_nodes_) {
     auto node = weak_node.lock();
     if (!node) {
@@ -198,7 +190,6 @@ EventsExecutorEntitiesCollector::set_entities_callbacks()
       group->find_waitable_ptrs_if(
         [this](const rclcpp::Waitable::SharedPtr & waitable) {
           if (waitable) {
-            std::cout<<"entities collector setting waitable callback"<<std::endl;
             waitable->set_guard_condition_callback(executor_context_, executor_callback_);
           }
           return false;

@@ -355,7 +355,6 @@ public:
     RCLCPP_SCOPE_EXIT(this->spinning.store(false); );
     while (rclcpp::ok(this->context_) && spinning.load()) {
       // Do one item of work.
-      std::cout<<"Spin once for "<< timeout_left.count()<<std::endl;
       spin_once_impl(timeout_left);
 
       // Check if the future is set, return SUCCESS if it is.

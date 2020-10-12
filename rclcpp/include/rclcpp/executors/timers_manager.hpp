@@ -26,8 +26,8 @@
 #include <thread>
 #include <vector>
 
-#include <rclcpp/context.hpp>
-#include <rclcpp/timer.hpp>
+#include "rclcpp/context.hpp"
+#include "rclcpp/timer.hpp"
 
 namespace rclcpp
 {
@@ -37,11 +37,12 @@ namespace executors
 /**
  * @brief This class provides a way for storing and executing timer objects.
  * It APIs to suit the needs of different applications and execution models.
+ * All public APIs provided by this class are thread-safe.
  *
  * Timers management
  * This class provides APIs to add and remove timers.
  * This class keeps ownership of the added timers through a shared pointer.
- * Timers are kept ordered in a priority queue.
+ * Timers are kept ordered in a binary-heap priority queue.
  * Calls to add/remove APIs will temporarily block the execution of the timers and
  * will require to reorder the internal priority queue of timers.
  * Because of this, they have a not-negligible impact on the performance.
@@ -65,7 +66,7 @@ public:
   /**
    * @brief Construct a new TimersManager object
    */
-  TimersManager(std::shared_ptr<rclcpp::Context> context);
+  explicit TimersManager(std::shared_ptr<rclcpp::Context> context);
 
   /**
    * @brief Destruct the object making sure to stop thread and release memory.
@@ -168,7 +169,7 @@ private:
    */
   void add_timer_to_heap(TimerPtr x)
   {
-    size_t i = heap_.size(); // Position where we are going to add timer
+    size_t i = heap_.size();  // Position where we are going to add timer
     heap_.push_back(x);
     while (i && ((*x)->time_until_trigger() < (*heap_[(i-1)/2])->time_until_trigger())) {
       heap_[i] = heap_[(i-1)/2];
@@ -194,7 +195,9 @@ private:
     // Swim up
     while (left_child < heap_.size()) {
       size_t right_child = left_child + 1;
-      if (right_child < heap_.size() && (*heap_[left_child])->time_until_trigger() >= (*heap_[right_child])->time_until_trigger()) {
+      if (right_child < heap_.size() &&
+        (*heap_[left_child])->time_until_trigger() >= (*heap_[right_child])->time_until_trigger())
+      {
         left_child = right_child;
       }
       heap_[i] = heap_[left_child];
@@ -247,7 +250,7 @@ private:
   std::vector<TimerPtr> heap_;
 };
 
-}
-}
+}  // namespace executors
+}  // namespace rclcpp
 
 #endif  // RCLCPP__EXECUTORS__TIMERS_MANAGER_HPP_

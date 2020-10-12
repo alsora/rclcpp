@@ -15,15 +15,16 @@
 #ifndef RCLCPP__EXECUTORS__EVENTS_EXECUTOR_HPP_
 #define RCLCPP__EXECUTORS__EVENTS_EXECUTOR_HPP_
 
-#include <queue>
 #include <chrono>
+#include <memory>
+#include <queue>
+
+#include "rcutils/event_types.h"
 
 #include "rclcpp/executor.hpp"
 #include "rclcpp/executors/events_executor_entities_collector.hpp"
 #include "rclcpp/executors/timers_manager.hpp"
 #include "rclcpp/node.hpp"
-
-#include "rcutils/event_types.h"
 
 namespace rclcpp
 {

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <queue>
+#include <utility>
+
 #include "rclcpp/executors/events_executor.hpp"
 
 using namespace std::chrono_literals;
@@ -48,7 +52,7 @@ EventsExecutor::EventsExecutor(
     entities_collector_.get(),
     options.context->get_interrupt_guard_condition(&wait_set_),
     false /* Discard previous events */);
-  
+
   if (ret != RCL_RET_OK) {
     throw std::runtime_error("Couldn't set ctrl-c guard condition callback");
   }
@@ -85,7 +89,6 @@ EventsExecutor::spin()
   timers_manager_->start();
 
   while (rclcpp::ok(context_) && spinning.load()) {
-
     // Scope block for the mutex
     {
       std::unique_lock<std::mutex> lock(event_queue_mutex_);
@@ -169,7 +172,6 @@ EventsExecutor::spin_all(std::chrono::nanoseconds max_duration)
 
   // Keep executing until work available or timeout expired
   while (rclcpp::ok(context_) && spinning.load() && max_duration_not_elapsed()) {
-
     {
       std::unique_lock<std::mutex> lock(event_queue_mutex_);
       std::swap(local_event_queue, event_queue_);
@@ -344,7 +346,6 @@ void
 EventsExecutor::consume_all_events(std::queue<EventQ> &event_queue)
 {
   while (!event_queue.empty()) {
-
     EventQ event = event_queue.front();
     event_queue.pop();
 
