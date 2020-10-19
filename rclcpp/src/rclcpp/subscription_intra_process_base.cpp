@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-
 #include "rclcpp/experimental/subscription_intra_process_base.hpp"
 
 using rclcpp::experimental::SubscriptionIntraProcessBase;
@@ -52,6 +50,6 @@ SubscriptionIntraProcessBase::set_events_executor_callback(
     true /*Use previous events*/);
 
   if (RCL_RET_OK != ret) {
-    throw std::runtime_error(std::string("Couldn't set guard condition callback"));
+    throw std::runtime_error("Couldn't set guard condition callback");
   }
 }

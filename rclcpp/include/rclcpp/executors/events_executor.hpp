@@ -18,12 +18,12 @@
 #include <chrono>
 #include <deque>
 #include <memory>
-#include <queue>
 
 #include "rcutils/executor_event_types.h"
 
 #include "rclcpp/executor.hpp"
 #include "rclcpp/executors/events_executor_entities_collector.hpp"
+#include "rclcpp/executors/events_executor_notify_waitable.hpp"
 #include "rclcpp/executors/timers_manager.hpp"
 #include "rclcpp/node.hpp"
 
@@ -57,7 +57,7 @@ public:
 
   /// Default destrcutor.
   RCLCPP_PUBLIC
-  virtual ~EventsExecutor();
+  virtual ~EventsExecutor() = default;
 
   /// Events executor implementation of spin.
   /**
@@ -231,8 +231,6 @@ private:
   // facilitate the removal of events from expired entities.
   using EventQueue = std::deque<ExecutorEvent>;
 
-  EventsExecutorEntitiesCollector::SharedPtr entities_collector_;
-
   /// Extract and execute events from the queue until it is empty
   RCLCPP_PUBLIC
   void
@@ -247,6 +245,7 @@ private:
   EventQueue event_queue_;
   EventQueue local_event_queue_;
 
+  EventsExecutorEntitiesCollector::SharedPtr entities_collector_;
   // Mutex to protect the insertion of events in the queue
   std::mutex push_mutex_;
   // Mutex to protect the execution of events

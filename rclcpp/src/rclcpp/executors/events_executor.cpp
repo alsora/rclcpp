@@ -58,8 +58,6 @@ EventsExecutor::EventsExecutor(
   }
 }
 
-EventsExecutor::~EventsExecutor() {}
-
 void
 EventsExecutor::spin()
 {
