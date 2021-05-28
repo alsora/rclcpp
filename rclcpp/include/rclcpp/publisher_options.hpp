@@ -65,10 +65,6 @@ struct PublisherOptionsBase
 template<typename Allocator>
 struct PublisherOptionsWithAllocator : public PublisherOptionsBase
 {
-  static_assert(
-    std::is_void_v<typename std::allocator_traits<Allocator>::value_type>,
-    "Publisher allocator value type must be void");
-
   /// Optional custom allocator.
   std::shared_ptr<Allocator> allocator = nullptr;
 

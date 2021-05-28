@@ -87,10 +87,6 @@ struct SubscriptionOptionsBase
 template<typename Allocator>
 struct SubscriptionOptionsWithAllocator : public SubscriptionOptionsBase
 {
-  static_assert(
-    std::is_void_v<typename std::allocator_traits<Allocator>::value_type>,
-    "Subscription allocator value type must be void");
-
   /// Optional custom allocator.
   std::shared_ptr<Allocator> allocator = nullptr;
 
