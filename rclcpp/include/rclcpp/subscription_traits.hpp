@@ -64,7 +64,7 @@ struct is_serialized_callback
 template<typename MessageT>
 struct extract_message_type
 {
-  using type = typename std::remove_cv_t<std::remove_reference_t<MessageT>>;
+  using type = typename std::remove_cv<MessageT>::type;
 };
 
 template<typename MessageT>

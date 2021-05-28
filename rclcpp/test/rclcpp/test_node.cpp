@@ -2630,7 +2630,7 @@ TEST_F(TestNode, get_publishers_subscriptions_info_by_topic) {
     false
   };
   rclcpp::QoS qos2 = rclcpp::QoS(qos_initialization2, rmw_qos_profile_default2);
-  auto callback = [](test_msgs::msg::BasicTypes::ConstSharedPtr msg) {
+  auto callback = [](const test_msgs::msg::BasicTypes::SharedPtr msg) {
       (void)msg;
     };
   auto subscriber =

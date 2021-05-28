@@ -108,7 +108,7 @@ public:
   }
 
 protected:
-  static void OnMessage(test_msgs::msg::Empty::ConstSharedPtr msg)
+  static void OnMessage(const test_msgs::msg::Empty::SharedPtr msg)
   {
     (void)msg;
   }

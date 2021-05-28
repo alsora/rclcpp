@@ -335,7 +335,7 @@ TEST_F(TestNodeGraph, get_info_by_topic)
 {
   const rclcpp::QoS publisher_qos(1);
   auto publisher = node()->create_publisher<test_msgs::msg::Empty>("topic", publisher_qos);
-  auto callback = [](test_msgs::msg::Empty::ConstSharedPtr) {};
+  auto callback = [](const test_msgs::msg::Empty::SharedPtr) {};
 
   const rclcpp::QoS subscriber_qos(10);
   auto subscription =
